@@ -215,7 +215,6 @@ public class DebeziumSchemaUtils {
             case "int64":
                 return DataTypes.BIGINT();
             case "float32":
-            case "float64":
                 return DataTypes.FLOAT();
             case "double":
                 return DataTypes.DOUBLE();
