@@ -75,20 +75,23 @@ public class SnapshotManager implements Serializable {
     }
 
     public Path snapshotDirectory() {
-        return new Path(tablePath + "/snapshot");
+        return branchSnapshotDirectory(DEFAULT_MAIN_BRANCH);
     }
 
     public Path snapshotPath(long snapshotId) {
-        return new Path(tablePath + "/snapshot/" + SNAPSHOT_PREFIX + snapshotId);
+        return branchSnapshotPath(DEFAULT_MAIN_BRANCH, snapshotId);
     }
 
     public Path branchSnapshotDirectory(String branchName) {
-        return new Path(getBranchPath(tablePath, branchName) + "/snapshot");
+        return new Path(getBranchPath(fileIO, tablePath, branchName) + "/snapshot");
     }
 
     public Path branchSnapshotPath(String branchName, long snapshotId) {
         return new Path(
-                getBranchPath(tablePath, branchName) + "/snapshot/" + SNAPSHOT_PREFIX + snapshotId);
+                getBranchPath(fileIO, tablePath, branchName)
+                        + "/snapshot/"
+                        + SNAPSHOT_PREFIX
+                        + snapshotId);
     }
 
     public Path snapshotPathByBranch(String branchName, long snapshotId) {
@@ -110,6 +113,17 @@ public class SnapshotManager implements Serializable {
     public Snapshot snapshot(String branchName, long snapshotId) {
         Path snapshotPath = snapshotPathByBranch(branchName, snapshotId);
         return Snapshot.fromPath(fileIO, snapshotPath);
+    }
+
+    public boolean branchSnapshotExists(String branchName, long snapshotId) {
+        Path path = snapshotPathByBranch(branchName, snapshotId);
+        try {
+            return fileIO.exists(path);
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Failed to determine if snapshot #" + snapshotId + " exists in path " + path,
+                    e);
+        }
     }
 
     public boolean snapshotExists(long snapshotId) {
@@ -246,6 +260,13 @@ public class SnapshotManager implements Serializable {
     public Iterator<Snapshot> snapshots() throws IOException {
         return listVersionedFiles(fileIO, snapshotDirectory(), SNAPSHOT_PREFIX)
                 .map(this::snapshot)
+                .sorted(Comparator.comparingLong(Snapshot::id))
+                .iterator();
+    }
+
+    public Iterator<Snapshot> snapshotsWithBranch(String branchName) throws IOException {
+        return listVersionedFiles(fileIO, snapshotDirByBranch(branchName), SNAPSHOT_PREFIX)
+                .map(snapshotId -> snapshot(branchName, snapshotId))
                 .sorted(Comparator.comparingLong(Snapshot::id))
                 .iterator();
     }
@@ -455,6 +476,16 @@ public class SnapshotManager implements Serializable {
         return listVersionedFiles(fileIO, snapshotDir, SNAPSHOT_PREFIX)
                 .reduce(reducer)
                 .orElse(null);
+    }
+
+    public void deleteLatestHint() throws IOException {
+        deleteLatestHint(DEFAULT_MAIN_BRANCH);
+    }
+
+    public void deleteLatestHint(String branchName) throws IOException {
+        Path snapshotDir = snapshotDirByBranch(branchName);
+        Path hintFile = new Path(snapshotDir, LATEST);
+        fileIO.delete(hintFile, false);
     }
 
     public void commitLatestHint(long snapshotId) throws IOException {

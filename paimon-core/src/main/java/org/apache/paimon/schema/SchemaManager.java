@@ -109,9 +109,26 @@ public class SchemaManager implements Serializable {
         }
     }
 
+    /** List all schema with branch. */
+    public List<TableSchema> listAllWithBranch(String branchName) {
+        return listAllIdsWithBranch(branchName).stream()
+                .map(this::schema)
+                .collect(Collectors.toList());
+    }
+
     /** List all schema. */
     public List<TableSchema> listAll() {
         return listAllIds().stream().map(this::schema).collect(Collectors.toList());
+    }
+
+    /** List all schema IDs with branch. */
+    public List<Long> listAllIdsWithBranch(String branchName) {
+        try {
+            return listVersionedFiles(fileIO, branchSchemaDirectory(branchName), SCHEMA_PREFIX)
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /** List all schema IDs. */
@@ -482,22 +499,25 @@ public class SchemaManager implements Serializable {
         }
     }
 
-    private Path schemaDirectory() {
-        return new Path(tableRoot + "/schema");
+    public Path schemaDirectory() {
+        return branchSchemaDirectory(DEFAULT_MAIN_BRANCH);
     }
 
     @VisibleForTesting
     public Path toSchemaPath(long id) {
-        return new Path(tableRoot + "/schema/" + SCHEMA_PREFIX + id);
+        return branchSchemaPath(DEFAULT_MAIN_BRANCH, id);
     }
 
     public Path branchSchemaDirectory(String branchName) {
-        return new Path(getBranchPath(tableRoot, branchName) + "/schema");
+        return new Path(getBranchPath(fileIO, tableRoot, branchName) + "/schema");
     }
 
     public Path branchSchemaPath(String branchName, long schemaId) {
         return new Path(
-                getBranchPath(tableRoot, branchName) + "/schema/" + SCHEMA_PREFIX + schemaId);
+                getBranchPath(fileIO, tableRoot, branchName)
+                        + "/schema/"
+                        + SCHEMA_PREFIX
+                        + schemaId);
     }
 
     /**

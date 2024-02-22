@@ -26,6 +26,7 @@ import org.apache.paimon.fs.Path;
 import org.apache.paimon.manifest.ManifestEntry;
 import org.apache.paimon.operation.TagDeletion;
 import org.apache.paimon.table.sink.TagCallback;
+import org.apache.paimon.tag.TableTag;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,11 +36,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.apache.paimon.utils.BranchManager.DEFAULT_MAIN_BRANCH;
 import static org.apache.paimon.utils.BranchManager.getBranchPath;
 import static org.apache.paimon.utils.FileUtils.listVersionedFileStatus;
 import static org.apache.paimon.utils.Preconditions.checkArgument;
@@ -61,17 +64,22 @@ public class TagManager {
 
     /** Return the root Directory of tags. */
     public Path tagDirectory() {
-        return new Path(tablePath + "/tag");
+        return branchTagDirectory(DEFAULT_MAIN_BRANCH);
+    }
+
+    public Path branchTagDirectory(String branchName) {
+        return new Path(getBranchPath(fileIO, tablePath, branchName) + "/tag");
     }
 
     /** Return the path of a tag. */
     public Path tagPath(String tagName) {
-        return new Path(tablePath + "/tag/" + TAG_PREFIX + tagName);
+        return branchTagPath(DEFAULT_MAIN_BRANCH, tagName);
     }
 
     /** Return the path of a tag in branch. */
     public Path branchTagPath(String branchName, String tagName) {
-        return new Path(getBranchPath(tablePath, branchName) + "/tag/" + TAG_PREFIX + tagName);
+        return new Path(
+                getBranchPath(fileIO, tablePath, branchName) + "/tag/" + TAG_PREFIX + tagName);
     }
 
     /** Create a tag from given snapshot and save it in the storage. */
@@ -192,6 +200,19 @@ public class TagManager {
     }
 
     /** Check if a tag exists. */
+    public boolean branchTagExists(String branchName, String tagName) {
+        Path path = branchTagPath(branchName, tagName);
+        try {
+            return fileIO.exists(path);
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    String.format(
+                            "Failed to determine if tag '%s' exists in path %s.", tagName, path),
+                    e);
+        }
+    }
+
+    /** Check if a tag exists. */
     public boolean tagExists(String tagName) {
         Path path = tagPath(tagName);
         try {
@@ -228,6 +249,11 @@ public class TagManager {
         return tags(tagName -> true);
     }
 
+    /** Get all tagged snapshots with names sorted by snapshot id. */
+    public SortedMap<Snapshot, List<String>> tagsWithBranch(String branchName) {
+        return tagsWithBranch(tagName -> true, branchName);
+    }
+
     /**
      * Retrieves a sorted map of snapshots filtered based on a provided predicate. The predicate
      * determines which tag names should be included in the result. Only snapshots with tag names
@@ -240,11 +266,21 @@ public class TagManager {
      * @throws RuntimeException if an IOException occurs during retrieval of snapshots.
      */
     public SortedMap<Snapshot, List<String>> tags(Predicate<String> filter) {
+        return tagsWithBranch(filter, null);
+    }
+
+    public SortedMap<Snapshot, List<String>> tagsWithBranch(
+            Predicate<String> filter, String branchName) {
         TreeMap<Snapshot, List<String>> tags =
                 new TreeMap<>(Comparator.comparingLong(Snapshot::id));
         try {
+
+            Path tagDirectory =
+                    StringUtils.isBlank(branchName)
+                            ? tagDirectory()
+                            : branchTagDirectory(branchName);
             List<Path> paths =
-                    listVersionedFileStatus(fileIO, tagDirectory(), TAG_PREFIX)
+                    listVersionedFileStatus(fileIO, tagDirectory, TAG_PREFIX)
                             .map(FileStatus::getPath)
                             .collect(Collectors.toList());
 
@@ -286,6 +322,34 @@ public class TagManager {
     @VisibleForTesting
     public List<String> allTagNames() {
         return tags().values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+    }
+
+    public List<TableTag> tableTags() {
+        return branchTableTags(DEFAULT_MAIN_BRANCH);
+    }
+
+    public List<TableTag> branchTableTags(String branchName) {
+        List<TableTag> tags = new ArrayList<>();
+        try {
+
+            Path tagDirectory =
+                    branchName.equals(DEFAULT_MAIN_BRANCH)
+                            ? tagDirectory()
+                            : branchTagDirectory(branchName);
+
+            List<Pair<Path, Long>> paths =
+                    listVersionedFileStatus(fileIO, tagDirectory, TAG_PREFIX)
+                            .map(status -> Pair.of(status.getPath(), status.getModificationTime()))
+                            .collect(Collectors.toList());
+
+            for (Map.Entry<Path, Long> path : paths) {
+                String tagName = path.getKey().getName().substring(TAG_PREFIX.length());
+                tags.add(new TableTag(tagName, path.getValue()));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return tags;
     }
 
     private int findIndex(Snapshot taggedSnapshot, List<Snapshot> taggedSnapshots) {
