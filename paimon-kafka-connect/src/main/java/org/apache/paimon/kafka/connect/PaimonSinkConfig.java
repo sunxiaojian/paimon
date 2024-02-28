@@ -27,8 +27,16 @@ import java.util.Map;
 public class PaimonSinkConfig extends AbstractConfig {
 
     public PaimonSinkConfig(Map<?, ?> config) {
-        super(definition, config);
+        super(configDef, config);
     }
 
-    public static ConfigDef definition = new ConfigDef();
+    public static ConfigDef configDef = new ConfigDef();
+
+    public static String version() {
+        String kcVersion = PaimonSinkConfig.class.getPackage().getImplementationVersion();
+        if (kcVersion == null) {
+            kcVersion = "unknown";
+        }
+        return "kc-" + kcVersion;
+    }
 }

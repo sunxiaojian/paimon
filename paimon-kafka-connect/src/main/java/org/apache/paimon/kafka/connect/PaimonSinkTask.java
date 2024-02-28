@@ -40,6 +40,6 @@ public class PaimonSinkTask extends SinkTask {
 
     @Override
     public String version() {
-        return Versions.version();
+        return PaimonSinkConfig.version();
     }
 }

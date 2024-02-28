@@ -55,5 +55,10 @@ under the License.
             <artifactId>paimon-bundle</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.paimon</groupId>
+            <artifactId>paimon-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>

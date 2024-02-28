@@ -18,16 +18,26 @@
 
 package org.apache.paimon.kafka.connect;
 
+import org.apache.paimon.shade.guava30.com.google.common.collect.Maps;
+
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.sink.SinkConnector;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
+import static java.util.stream.Collectors.toList;
+
+/** kafka connect sink connector for Paimon. */
 public class PaimonSinkConnector extends SinkConnector {
+    private Map<String, String> props;
+
     @Override
-    public void start(Map<String, String> map) {}
+    public void start(Map<String, String> props) {
+        this.props = props;
+    }
 
     @Override
     public Class<? extends Task> taskClass() {
@@ -35,8 +45,14 @@ public class PaimonSinkConnector extends SinkConnector {
     }
 
     @Override
-    public List<Map<String, String>> taskConfigs(int i) {
-        return null;
+    public List<Map<String, String>> taskConfigs(int maxTasks) {
+        return IntStream.range(0, maxTasks)
+                .mapToObj(
+                        i -> {
+                            Map<String, String> config = Maps.newHashMap(props);
+                            return config;
+                        })
+                .collect(toList());
     }
 
     @Override
@@ -44,11 +60,11 @@ public class PaimonSinkConnector extends SinkConnector {
 
     @Override
     public ConfigDef config() {
-        return null;
+        return PaimonSinkConfig.configDef;
     }
 
     @Override
     public String version() {
-        return Versions.version();
+        return PaimonSinkConfig.version();
     }
 }
