@@ -133,7 +133,7 @@ public class KafkaDebeziumSyncTableActionITCase extends KafkaSyncTableActionITCa
         KafkaSyncTableAction action =
                 syncTableActionBuilder(kafkaConfig)
                         .withPrimaryKeys("id")
-                        .withTableConfig(getBasicTableConfig())
+                        .withTableConfig(getTableConfig(getBasicTableConfig()))
                         .build();
         runActionWithDefaultEnv(action);
 

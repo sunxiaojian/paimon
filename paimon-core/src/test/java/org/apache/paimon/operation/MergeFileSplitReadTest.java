@@ -127,10 +127,7 @@ public class MergeFileSplitReadTest {
                             @Override
                             public List<DataField> valueFields(TableSchema schema) {
                                 return Collections.singletonList(
-                                        new DataField(
-                                                0,
-                                                "count",
-                                                new org.apache.paimon.types.BigIntType()));
+                                        new DataField(0, "count", new BigIntType()));
                             }
                         },
                         TestValueCountMergeFunction.factory());
