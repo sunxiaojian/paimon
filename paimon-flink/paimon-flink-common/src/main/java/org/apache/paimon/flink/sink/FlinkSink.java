@@ -241,6 +241,8 @@ public abstract class FlinkSink<T> implements Serializable {
                         commitUser,
                         createCommitterFactory(streamingCheckpointEnabled),
                         createCommittableStateManager());
+
+        String branch = table.coreOptions().branch();
         if (Options.fromMap(table.options()).get(SINK_AUTO_TAG_FOR_SAVEPOINT)) {
             committerOperator =
                     new AutoTagForSavepointCommitterOperator<>(
@@ -248,14 +250,16 @@ public abstract class FlinkSink<T> implements Serializable {
                             table::snapshotManager,
                             table::tagManager,
                             () -> table.store().newTagDeletion(),
-                            () -> table.store().createTagCallbacks());
+                            () -> table.store().createTagCallbacks(),
+                            branch);
         }
         if (conf.get(ExecutionOptions.RUNTIME_MODE) == RuntimeExecutionMode.BATCH
                 && table.coreOptions().tagCreationMode() == TagCreationMode.BATCH) {
             committerOperator =
                     new BatchWriteGeneratorTagOperator<>(
                             (CommitterOperator<Committable, ManifestCommittable>) committerOperator,
-                            table);
+                            table,
+                            branch);
         }
         SingleOutputStreamOperator<?> committed =
                 written.transform(

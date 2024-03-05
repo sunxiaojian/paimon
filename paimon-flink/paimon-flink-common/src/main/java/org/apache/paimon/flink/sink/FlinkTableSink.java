@@ -47,7 +47,11 @@ public class FlinkTableSink extends SupportsRowLevelOperationFlinkTableSink
     @Override
     public void executeTruncation() {
         FileStoreCommit commit =
-                ((FileStoreTable) table).store().newCommit(UUID.randomUUID().toString());
+                ((FileStoreTable) table)
+                        .store()
+                        .newCommit(
+                                UUID.randomUUID().toString(),
+                                ((FileStoreTable) table).coreOptions().branch());
         long identifier = BatchWriteBuilder.COMMIT_IDENTIFIER;
         commit.purgeTable(identifier);
     }

@@ -26,10 +26,12 @@ import org.apache.paimon.operation.Lock;
 import org.apache.paimon.options.Options;
 import org.apache.paimon.schema.SchemaManager;
 import org.apache.paimon.schema.TableSchema;
+import org.apache.paimon.utils.BranchManager;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
+import static org.apache.paimon.CoreOptions.BRANCH_NAME;
 import static org.apache.paimon.CoreOptions.PATH;
 
 /** Factory to create {@link FileStoreTable}. */
@@ -53,9 +55,13 @@ public class FileStoreTableFactory {
 
     public static FileStoreTable create(FileIO fileIO, Options options) {
         Path tablePath = CoreOptions.path(options);
+        String branchName = BranchManager.DEFAULT_MAIN_BRANCH;
+        if (options.contains(BRANCH_NAME)) {
+            branchName = options.get(BRANCH_NAME);
+        }
         TableSchema tableSchema =
                 new SchemaManager(fileIO, tablePath)
-                        .latest()
+                        .latest(branchName)
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(

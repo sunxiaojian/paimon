@@ -36,6 +36,7 @@ import org.apache.paimon.table.FileStoreTableFactory;
 import org.apache.paimon.table.Table;
 import org.apache.paimon.table.sink.BatchWriteBuilder;
 import org.apache.paimon.table.system.SystemTableLoader;
+import org.apache.paimon.utils.BranchManager;
 import org.apache.paimon.utils.StringUtils;
 
 import javax.annotation.Nullable;
@@ -49,6 +50,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static org.apache.paimon.options.CatalogOptions.BRANCH_NAME;
 import static org.apache.paimon.options.CatalogOptions.LINEAGE_META;
 import static org.apache.paimon.options.OptionsUtils.convertToPropertiesPrefixKey;
 import static org.apache.paimon.utils.Preconditions.checkArgument;
@@ -63,6 +65,7 @@ public abstract class AbstractCatalog implements Catalog {
     protected final FileIO fileIO;
     protected final Map<String, String> tableDefaultOptions;
     protected final Options catalogOptions;
+    protected final String branchName;
 
     @Nullable protected final LineageMetaFactory lineageMetaFactory;
 
@@ -71,6 +74,7 @@ public abstract class AbstractCatalog implements Catalog {
         this.lineageMetaFactory = null;
         this.tableDefaultOptions = new HashMap<>();
         this.catalogOptions = new Options();
+        branchName = BranchManager.DEFAULT_MAIN_BRANCH;
     }
 
     protected AbstractCatalog(FileIO fileIO, Options options) {
@@ -80,6 +84,7 @@ public abstract class AbstractCatalog implements Catalog {
         this.tableDefaultOptions =
                 convertToPropertiesPrefixKey(options.toMap(), TABLE_DEFAULT_OPTION_PREFIX);
         this.catalogOptions = options;
+        this.branchName = options.get(BRANCH_NAME);
     }
 
     @Override

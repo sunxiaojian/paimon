@@ -113,7 +113,11 @@ public class SnapshotManager implements Serializable {
     }
 
     public boolean snapshotExists(long snapshotId) {
-        Path path = snapshotPath(snapshotId);
+        return snapshotExists(DEFAULT_MAIN_BRANCH, snapshotId);
+    }
+
+    public boolean snapshotExists(String branchName, long snapshotId) {
+        Path path = snapshotPathByBranch(branchName, snapshotId);
         try {
             return fileIO.exists(path);
         } catch (IOException e) {
@@ -146,6 +150,11 @@ public class SnapshotManager implements Serializable {
 
     public @Nullable Snapshot earliestSnapshot() {
         Long snapshotId = earliestSnapshotId();
+        return snapshotId == null ? null : snapshot(snapshotId);
+    }
+
+    public @Nullable Snapshot earliestSnapshot(String branchName) {
+        Long snapshotId = earliestSnapshotId(branchName);
         return snapshotId == null ? null : snapshot(snapshotId);
     }
 
@@ -318,13 +327,17 @@ public class SnapshotManager implements Serializable {
         return Optional.empty();
     }
 
-    /** Find the snapshot of the specified identifiers written by the specified user. */
     public List<Snapshot> findSnapshotsForIdentifiers(
             @Nonnull String user, List<Long> identifiers) {
+        return findSnapshotsForIdentifiers(user, identifiers, DEFAULT_MAIN_BRANCH);
+    }
+    /** Find the snapshot of the specified identifiers written by the specified user. */
+    public List<Snapshot> findSnapshotsForIdentifiers(
+            @Nonnull String user, List<Long> identifiers, String branchName) {
         if (identifiers.isEmpty()) {
             return Collections.emptyList();
         }
-        Long latestId = latestSnapshotId();
+        Long latestId = latestSnapshotId(branchName);
         if (latestId == null) {
             return Collections.emptyList();
         }
@@ -338,7 +351,7 @@ public class SnapshotManager implements Serializable {
         List<Snapshot> matchedSnapshots = new ArrayList<>();
         Set<Long> remainingIdentifiers = new HashSet<>(identifiers);
         for (long id = latestId; id >= earliestId && !remainingIdentifiers.isEmpty(); id--) {
-            Snapshot snapshot = snapshot(id);
+            Snapshot snapshot = snapshot(branchName, id);
             if (user.equals(snapshot.commitUser())) {
                 if (remainingIdentifiers.remove(snapshot.commitIdentifier())) {
                     matchedSnapshots.add(snapshot);
