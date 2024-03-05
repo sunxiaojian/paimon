@@ -232,7 +232,7 @@ public class TagManager {
                 taggedSnapshot, tagDeletion.manifestSkippingSet(skippedSnapshots));
     }
 
-    /** Check if a tag exists. */
+    /** Check if a branch tag exists. */
     public boolean tagExists(String tagName) {
         Path path = tagPath(tagName);
         try {
