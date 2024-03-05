@@ -87,6 +87,7 @@ public class TagManager {
     public void createTag(Snapshot snapshot, String tagName, List<TagCallback> callbacks) {
         createTag(snapshot, tagName, callbacks, DEFAULT_MAIN_BRANCH);
     }
+
     /** Create a tag from given snapshot and save it in the storage. */
     public void createTag(
             Snapshot snapshot, String tagName, List<TagCallback> callbacks, String branchName) {
@@ -266,6 +267,7 @@ public class TagManager {
     public List<Snapshot> taggedSnapshots() {
         return new ArrayList<>(tags().keySet());
     }
+
     /** Get all tagged snapshots sorted by snapshot id. */
     public List<Snapshot> taggedSnapshots(String branchName) {
         return new ArrayList<>(tags(branchName).keySet());
@@ -284,6 +286,7 @@ public class TagManager {
     public SortedMap<Snapshot, List<String>> tags(Predicate<String> filter) {
         return tags(DEFAULT_MAIN_BRANCH, filter);
     }
+
     /**
      * Retrieves a sorted map of snapshots filtered based on a provided predicate. The predicate
      * determines which tag names should be included in the result. Only snapshots with tag names

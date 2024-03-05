@@ -176,6 +176,12 @@ public class SchemaManager implements Serializable {
         return commitChanges(branchName, Arrays.asList(changes));
     }
 
+    public TableSchema commitChanges(List<SchemaChange> changes)
+            throws Catalog.ColumnAlreadyExistException, Catalog.TableNotExistException,
+                    Catalog.ColumnNotExistException {
+        return commitChanges(DEFAULT_MAIN_BRANCH, changes);
+    }
+
     /** Update {@link SchemaChange}s. */
     public TableSchema commitChanges(String branchName, List<SchemaChange> changes)
             throws Catalog.TableNotExistException, Catalog.ColumnAlreadyExistException,
@@ -532,6 +538,7 @@ public class SchemaManager implements Serializable {
     public void deleteSchema(String branchName, long schemaId) {
         fileIO.deleteQuietly(branchSchemaPath(branchName, schemaId));
     }
+
     /**
      * Delete schema with specific id.
      *

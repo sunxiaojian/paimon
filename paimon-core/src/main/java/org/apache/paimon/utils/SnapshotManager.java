@@ -331,6 +331,7 @@ public class SnapshotManager implements Serializable {
             @Nonnull String user, List<Long> identifiers) {
         return findSnapshotsForIdentifiers(user, identifiers, DEFAULT_MAIN_BRANCH);
     }
+
     /** Find the snapshot of the specified identifiers written by the specified user. */
     public List<Snapshot> findSnapshotsForIdentifiers(
             @Nonnull String user, List<Long> identifiers, String branchName) {
