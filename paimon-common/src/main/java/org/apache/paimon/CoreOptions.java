@@ -104,7 +104,7 @@ public class CoreOptions implements Serializable {
     public static final ConfigOption<String> BRANCH_NAME =
             key("branch-name")
                     .stringType()
-                    .noDefaultValue()
+                    .defaultValue("main")
                     .withDescription("Specify branch name.");
 
     public static final ConfigOption<FileFormatType> FILE_FORMAT =
@@ -1119,7 +1119,7 @@ public class CoreOptions implements Serializable {
         if (options.containsKey(BRANCH_NAME.key())) {
             return options.get(BRANCH_NAME.key());
         }
-        return "main";
+        return BRANCH_NAME.defaultValue();
     }
 
     public static Path path(Map<String, String> options) {

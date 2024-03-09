@@ -141,7 +141,7 @@ abstract class AbstractFileStoreTable implements FileStoreTable {
     @Override
     public SnapshotReader newSnapshotReader(String branchName) {
         return new SnapshotReaderImpl(
-                store().newScan(branchName),
+                store().newScan(),
                 tableSchema,
                 coreOptions(),
                 snapshotManager(),
@@ -243,7 +243,8 @@ abstract class AbstractFileStoreTable implements FileStoreTable {
     @Override
     public FileStoreTable copyWithLatestSchema() {
         Map<String, String> options = tableSchema.options();
-        SchemaManager schemaManager = new SchemaManager(fileIO(), location());
+        SchemaManager schemaManager =
+                new SchemaManager(fileIO(), location(), CoreOptions.branch(options()));
         Optional<TableSchema> optionalLatestSchema = schemaManager.latest();
         if (optionalLatestSchema.isPresent()) {
             TableSchema newTableSchema = optionalLatestSchema.get();
@@ -256,7 +257,7 @@ abstract class AbstractFileStoreTable implements FileStoreTable {
     }
 
     protected SchemaManager schemaManager() {
-        return new SchemaManager(fileIO(), path);
+        return new SchemaManager(fileIO(), path, CoreOptions.branch(options()));
     }
 
     @Override

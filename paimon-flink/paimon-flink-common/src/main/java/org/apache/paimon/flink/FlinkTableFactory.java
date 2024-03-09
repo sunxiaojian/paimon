@@ -82,9 +82,11 @@ public class FlinkTableFactory extends AbstractFlinkTableFactory {
                 String branch = CoreOptions.branch(table.getOptions());
                 SchemaManager schemaManager =
                         new SchemaManager(
-                                FileIO.get(tablePath, createCatalogContext(context)), tablePath);
+                                FileIO.get(tablePath, createCatalogContext(context)),
+                                tablePath,
+                                branch);
                 if (!schemaManager.latest().isPresent()) {
-                    schemaManager.createTable(FlinkCatalog.fromCatalogTable(table), branch);
+                    schemaManager.createTable(FlinkCatalog.fromCatalogTable(table));
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);

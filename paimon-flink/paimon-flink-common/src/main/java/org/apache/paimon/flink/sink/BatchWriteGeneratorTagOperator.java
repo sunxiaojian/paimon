@@ -113,7 +113,7 @@ public class BatchWriteGeneratorTagOperator<CommitT, GlobalCommitT>
 
     private void createTag() {
         SnapshotManager snapshotManager = table.snapshotManager();
-        Snapshot snapshot = snapshotManager.latestSnapshot(branchName);
+        Snapshot snapshot = snapshotManager.latestSnapshot();
         if (snapshot == null) {
             return;
         }

@@ -188,7 +188,7 @@ public class TagManager {
             skippedSnapshots.add(taggedSnapshots.get(index - 1));
         }
         // the nearest right neighbor
-        Snapshot right = snapshotManager.earliestSnapshot(branchName);
+        Snapshot right = snapshotManager.earliestSnapshot();
         if (index + 1 < taggedSnapshots.size()) {
             Snapshot rightTag = taggedSnapshots.get(index + 1);
             right = right.id() < rightTag.id() ? right : rightTag;

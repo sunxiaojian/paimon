@@ -114,6 +114,7 @@ public abstract class ActionITCaseBase extends AbstractTestBase {
         if (!newOptions.containsKey("bucket")) {
             newOptions.put("bucket", "1");
         }
+        newOptions.put("branch-name", "branch-01");
         catalog.createTable(
                 identifier,
                 new Schema(rowType.getFields(), partitionKeys, primaryKeys, newOptions, ""),

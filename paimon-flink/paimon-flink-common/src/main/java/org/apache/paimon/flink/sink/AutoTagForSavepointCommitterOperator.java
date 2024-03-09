@@ -183,7 +183,7 @@ public class AutoTagForSavepointCommitterOperator<CommitT, GlobalCommitT>
     private void createTagForIdentifiers(List<Long> identifiers) {
         List<Snapshot> snapshotForTags =
                 snapshotManager.findSnapshotsForIdentifiers(
-                        commitOperator.getCommitUser(), identifiers, branchName);
+                        commitOperator.getCommitUser(), identifiers);
         for (Snapshot snapshot : snapshotForTags) {
             String tagName = SAVEPOINT_TAG_PREFIX + snapshot.commitIdentifier();
             if (!tagManager.tagExists(branchName, tagName)) {

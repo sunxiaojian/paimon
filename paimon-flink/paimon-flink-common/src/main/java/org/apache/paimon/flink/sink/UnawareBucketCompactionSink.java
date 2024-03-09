@@ -18,6 +18,7 @@
 
 package org.apache.paimon.flink.sink;
 
+import org.apache.paimon.CoreOptions;
 import org.apache.paimon.append.AppendOnlyCompactionTask;
 import org.apache.paimon.manifest.ManifestCommittable;
 import org.apache.paimon.table.FileStoreTable;
@@ -51,7 +52,7 @@ public class UnawareBucketCompactionSink extends FlinkSink<AppendOnlyCompactionT
     protected Committer.Factory<Committable, ManifestCommittable> createCommitterFactory(
             boolean streamingCheckpointEnabled) {
         return (s, metricGroup) ->
-                new StoreCommitter(table.newCommit(s, table.coreOptions().branch()), metricGroup);
+                new StoreCommitter(table.newCommit(s, CoreOptions.branch(table.options())), metricGroup);
     }
 
     @Override

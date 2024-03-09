@@ -18,6 +18,7 @@
 
 package org.apache.paimon.flink.sink;
 
+import org.apache.paimon.CoreOptions;
 import org.apache.paimon.CoreOptions.ChangelogProducer;
 import org.apache.paimon.CoreOptions.TagCreationMode;
 import org.apache.paimon.flink.utils.StreamExecutionEnvironmentUtils;
@@ -242,7 +243,7 @@ public abstract class FlinkSink<T> implements Serializable {
                         createCommitterFactory(streamingCheckpointEnabled),
                         createCommittableStateManager());
 
-        String branch = table.coreOptions().branch();
+        String branch = CoreOptions.branch(table.options());
         if (Options.fromMap(table.options()).get(SINK_AUTO_TAG_FOR_SAVEPOINT)) {
             committerOperator =
                     new AutoTagForSavepointCommitterOperator<>(

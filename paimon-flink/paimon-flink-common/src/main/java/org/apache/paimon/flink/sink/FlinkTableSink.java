@@ -18,6 +18,7 @@
 
 package org.apache.paimon.flink.sink;
 
+import org.apache.paimon.CoreOptions;
 import org.apache.paimon.flink.log.LogStoreTableFactory;
 import org.apache.paimon.operation.FileStoreCommit;
 import org.apache.paimon.table.FileStoreTable;
@@ -51,7 +52,7 @@ public class FlinkTableSink extends SupportsRowLevelOperationFlinkTableSink
                         .store()
                         .newCommit(
                                 UUID.randomUUID().toString(),
-                                ((FileStoreTable) table).coreOptions().branch());
+                                CoreOptions.branch(table.options()));
         long identifier = BatchWriteBuilder.COMMIT_IDENTIFIER;
         commit.purgeTable(identifier);
     }

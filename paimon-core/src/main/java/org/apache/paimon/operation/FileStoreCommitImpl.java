@@ -239,7 +239,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                 // we can skip conflict checking in tryCommit method.
                 // This optimization is mainly used to decrease the number of times we read from
                 // files.
-                latestSnapshot = snapshotManager.latestSnapshot(branchName);
+                latestSnapshot = snapshotManager.latestSnapshot();
                 if (latestSnapshot != null) {
                     // it is possible that some partitions only have compact changes,
                     // so we need to contain all changes
@@ -614,7 +614,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
             @Nullable String statsFileName) {
         int cnt = 0;
         while (true) {
-            Snapshot latestSnapshot = snapshotManager.latestSnapshot(branchName);
+            Snapshot latestSnapshot = snapshotManager.latestSnapshot();
             cnt++;
             if (tryCommitOnce(
                     tableFiles,
@@ -796,7 +796,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                 newIndexManifest = indexManifest;
             }
 
-            long latestSchemaId = schemaManager.latest(branchName).get().id();
+            long latestSchemaId = schemaManager.latest().get().id();
 
             // write new stats or inherit from the previous snapshot
             String statsFileName = null;

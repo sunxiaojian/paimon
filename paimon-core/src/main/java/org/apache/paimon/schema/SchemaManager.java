@@ -44,6 +44,7 @@ import org.apache.paimon.types.ReassignFieldId;
 import org.apache.paimon.types.RowType;
 import org.apache.paimon.utils.JsonSerdeUtil;
 import org.apache.paimon.utils.Preconditions;
+import org.apache.paimon.utils.StringUtils;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
@@ -77,12 +78,17 @@ public class SchemaManager implements Serializable {
 
     private final FileIO fileIO;
     private final Path tableRoot;
-
     @Nullable private transient Lock lock;
+    private final String branchName;
 
     public SchemaManager(FileIO fileIO, Path tableRoot) {
+        this(fileIO, tableRoot, DEFAULT_MAIN_BRANCH);
+    }
+
+    public SchemaManager(FileIO fileIO, Path tableRoot, String branchName) {
         this.fileIO = fileIO;
         this.tableRoot = tableRoot;
+        this.branchName = StringUtils.isBlank(branchName) ? DEFAULT_MAIN_BRANCH : branchName;
     }
 
     public SchemaManager withLock(@Nullable Lock lock) {
@@ -90,12 +96,11 @@ public class SchemaManager implements Serializable {
         return this;
     }
 
-    /** @return latest schema. */
-    public Optional<TableSchema> latest() {
-        return latest(DEFAULT_MAIN_BRANCH);
+    public String getBranchName() {
+        return branchName;
     }
 
-    public Optional<TableSchema> latest(String branchName) {
+    public Optional<TableSchema> latest() {
         try {
             return listVersionedFiles(fileIO, schemaDirectory(branchName), SCHEMA_PREFIX)
                     .reduce(Math::max)
@@ -105,21 +110,12 @@ public class SchemaManager implements Serializable {
         }
     }
 
-    /** List all schema. */
     public List<TableSchema> listAll() {
-        return listAll(DEFAULT_MAIN_BRANCH);
-    }
-
-    public List<TableSchema> listAll(String branchName) {
-        return listAllIds(branchName).stream().map(this::schema).collect(Collectors.toList());
-    }
-
-    public List<Long> listAllIds() {
-        return listAllIds(DEFAULT_MAIN_BRANCH);
+        return listAllIds().stream().map(this::schema).collect(Collectors.toList());
     }
 
     /** List all schema IDs. */
-    public List<Long> listAllIds(String branchName) {
+    public List<Long> listAllIds() {
         try {
             return listVersionedFiles(fileIO, schemaDirectory(branchName), SCHEMA_PREFIX)
                     .collect(Collectors.toList());
@@ -128,15 +124,10 @@ public class SchemaManager implements Serializable {
         }
     }
 
-    public TableSchema createTable(Schema schema) throws Exception {
-        return createTable(schema, DEFAULT_MAIN_BRANCH);
-    }
-
     /** Create a new schema from {@link Schema}. */
-    public TableSchema createTable(Schema schema, String branchName) throws Exception {
+    public TableSchema createTable(Schema schema) throws Exception {
         while (true) {
-            latest(branchName)
-                    .ifPresent(
+            latest().ifPresent(
                             latest -> {
                                 throw new IllegalStateException(
                                         "Schema in filesystem exists, please use updating,"
@@ -167,23 +158,13 @@ public class SchemaManager implements Serializable {
         }
     }
 
+    /** Update {@link SchemaChange}s. */
     public TableSchema commitChanges(SchemaChange... changes) throws Exception {
-        return commitChanges(DEFAULT_MAIN_BRANCH, changes);
+        return commitChanges(Arrays.asList(changes));
     }
 
     /** Update {@link SchemaChange}s. */
-    public TableSchema commitChanges(String branchName, SchemaChange... changes) throws Exception {
-        return commitChanges(branchName, Arrays.asList(changes));
-    }
-
     public TableSchema commitChanges(List<SchemaChange> changes)
-            throws Catalog.ColumnAlreadyExistException, Catalog.TableNotExistException,
-                    Catalog.ColumnNotExistException {
-        return commitChanges(DEFAULT_MAIN_BRANCH, changes);
-    }
-
-    /** Update {@link SchemaChange}s. */
-    public TableSchema commitChanges(String branchName, List<SchemaChange> changes)
             throws Catalog.TableNotExistException, Catalog.ColumnAlreadyExistException,
                     Catalog.ColumnNotExistException {
         while (true) {
@@ -535,17 +516,8 @@ public class SchemaManager implements Serializable {
      *
      * @param schemaId the schema id to delete.
      */
-    public void deleteSchema(String branchName, long schemaId) {
-        fileIO.deleteQuietly(branchSchemaPath(branchName, schemaId));
-    }
-
-    /**
-     * Delete schema with specific id.
-     *
-     * @param schemaId the schema id to delete.
-     */
     public void deleteSchema(long schemaId) {
-        fileIO.deleteQuietly(toSchemaPath(schemaId));
+        fileIO.deleteQuietly(branchSchemaPath(branchName, schemaId));
     }
 
     public static void checkAlterTableOption(String key) {

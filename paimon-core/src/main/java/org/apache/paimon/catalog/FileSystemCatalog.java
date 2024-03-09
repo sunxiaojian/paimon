@@ -123,14 +123,14 @@ public class FileSystemCatalog extends AbstractCatalog {
     }
 
     private boolean tableExists(Path tablePath) {
-        return new SchemaManager(fileIO, tablePath).listAllIds(branchName).size() > 0;
+        return new SchemaManager(fileIO, tablePath, branchName).listAllIds().size() > 0;
     }
 
     @Override
     public TableSchema getDataTableSchema(Identifier identifier) throws TableNotExistException {
         Path path = getDataTableLocation(identifier);
-        return new SchemaManager(fileIO, path)
-                .latest(branchName)
+        return new SchemaManager(fileIO, path, branchName)
+                .latest()
                 .orElseThrow(() -> new TableNotExistException(identifier));
     }
 
@@ -143,7 +143,7 @@ public class FileSystemCatalog extends AbstractCatalog {
     @Override
     public void createTableImpl(Identifier identifier, Schema schema) {
         Path path = getDataTableLocation(identifier);
-        uncheck(() -> new SchemaManager(fileIO, path).createTable(schema, branchName));
+        uncheck(() -> new SchemaManager(fileIO, path, branchName).createTable(schema));
     }
 
     @Override
@@ -156,8 +156,8 @@ public class FileSystemCatalog extends AbstractCatalog {
     @Override
     protected void alterTableImpl(Identifier identifier, List<SchemaChange> changes)
             throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException {
-        new SchemaManager(fileIO, getDataTableLocation(identifier))
-                .commitChanges(branchName, changes);
+        new SchemaManager(fileIO, getDataTableLocation(identifier), branchName)
+                .commitChanges(changes);
     }
 
     private static <T> T uncheck(Callable<T> callable) {

@@ -61,9 +61,16 @@ public class SnapshotManager implements Serializable {
     private final FileIO fileIO;
     private final Path tablePath;
 
+    private final String branchName;
+
     public SnapshotManager(FileIO fileIO, Path tablePath) {
+        this(fileIO, tablePath, DEFAULT_MAIN_BRANCH);
+    }
+
+    public SnapshotManager(FileIO fileIO, Path tablePath, String branchName) {
         this.fileIO = fileIO;
         this.tablePath = tablePath;
+        this.branchName = StringUtils.isBlank(branchName) ? DEFAULT_MAIN_BRANCH : branchName;
     }
 
     public FileIO fileIO() {
@@ -74,6 +81,10 @@ public class SnapshotManager implements Serializable {
         return tablePath;
     }
 
+    public String getBranchName() {
+        return branchName;
+    }
+
     public Path snapshotDirectory() {
         return new Path(tablePath + "/snapshot");
     }
@@ -82,7 +93,7 @@ public class SnapshotManager implements Serializable {
         return new Path(tablePath + "/snapshot/" + SNAPSHOT_PREFIX + snapshotId);
     }
 
-    public Path branchSnapshotDirectory(String branchName) {
+    public Path snapshotDirectory(String branchName) {
         return new Path(getBranchPath(tablePath, branchName) + "/snapshot");
     }
 
@@ -100,23 +111,15 @@ public class SnapshotManager implements Serializable {
     public Path snapshotDirByBranch(String branchName) {
         return branchName.equals(DEFAULT_MAIN_BRANCH)
                 ? snapshotDirectory()
-                : branchSnapshotDirectory(branchName);
+                : snapshotDirectory(branchName);
     }
 
     public Snapshot snapshot(long snapshotId) {
-        return snapshot(DEFAULT_MAIN_BRANCH, snapshotId);
-    }
-
-    public Snapshot snapshot(String branchName, long snapshotId) {
         Path snapshotPath = snapshotPathByBranch(branchName, snapshotId);
         return Snapshot.fromPath(fileIO, snapshotPath);
     }
 
     public boolean snapshotExists(long snapshotId) {
-        return snapshotExists(DEFAULT_MAIN_BRANCH, snapshotId);
-    }
-
-    public boolean snapshotExists(String branchName, long snapshotId) {
         Path path = snapshotPathByBranch(branchName, snapshotId);
         try {
             return fileIO.exists(path);
@@ -128,21 +131,13 @@ public class SnapshotManager implements Serializable {
     }
 
     public @Nullable Snapshot latestSnapshot() {
-        return latestSnapshot(DEFAULT_MAIN_BRANCH);
-    }
-
-    public @Nullable Snapshot latestSnapshot(String branchName) {
-        Long snapshotId = latestSnapshotId(branchName);
-        return snapshotId == null ? null : snapshot(branchName, snapshotId);
+        Long snapshotId = latestSnapshotId();
+        return snapshotId == null ? null : snapshot(snapshotId);
     }
 
     public @Nullable Long latestSnapshotId() {
-        return latestSnapshotId(DEFAULT_MAIN_BRANCH);
-    }
-
-    public @Nullable Long latestSnapshotId(String branchName) {
         try {
-            return findLatest(branchName);
+            return findLatest();
         } catch (IOException e) {
             throw new RuntimeException("Failed to find latest snapshot id", e);
         }
@@ -153,18 +148,9 @@ public class SnapshotManager implements Serializable {
         return snapshotId == null ? null : snapshot(snapshotId);
     }
 
-    public @Nullable Snapshot earliestSnapshot(String branchName) {
-        Long snapshotId = earliestSnapshotId(branchName);
-        return snapshotId == null ? null : snapshot(snapshotId);
-    }
-
     public @Nullable Long earliestSnapshotId() {
-        return earliestSnapshotId(DEFAULT_MAIN_BRANCH);
-    }
-
-    public @Nullable Long earliestSnapshotId(String branchName) {
         try {
-            return findEarliest(branchName);
+            return findEarliest();
         } catch (IOException e) {
             throw new RuntimeException("Failed to find earliest snapshot id", e);
         }
@@ -327,18 +313,13 @@ public class SnapshotManager implements Serializable {
         return Optional.empty();
     }
 
-    public List<Snapshot> findSnapshotsForIdentifiers(
-            @Nonnull String user, List<Long> identifiers) {
-        return findSnapshotsForIdentifiers(user, identifiers, DEFAULT_MAIN_BRANCH);
-    }
-
     /** Find the snapshot of the specified identifiers written by the specified user. */
     public List<Snapshot> findSnapshotsForIdentifiers(
-            @Nonnull String user, List<Long> identifiers, String branchName) {
+            @Nonnull String user, List<Long> identifiers) {
         if (identifiers.isEmpty()) {
             return Collections.emptyList();
         }
-        Long latestId = latestSnapshotId(branchName);
+        Long latestId = latestSnapshotId();
         if (latestId == null) {
             return Collections.emptyList();
         }
@@ -352,7 +333,7 @@ public class SnapshotManager implements Serializable {
         List<Snapshot> matchedSnapshots = new ArrayList<>();
         Set<Long> remainingIdentifiers = new HashSet<>(identifiers);
         for (long id = latestId; id >= earliestId && !remainingIdentifiers.isEmpty(); id--) {
-            Snapshot snapshot = snapshot(branchName, id);
+            Snapshot snapshot = snapshot(id);
             if (user.equals(snapshot.commitUser())) {
                 if (remainingIdentifiers.remove(snapshot.commitIdentifier())) {
                     matchedSnapshots.add(snapshot);
@@ -407,7 +388,7 @@ public class SnapshotManager implements Serializable {
         return null;
     }
 
-    private @Nullable Long findLatest(String branchName) throws IOException {
+    private @Nullable Long findLatest() throws IOException {
         Path snapshotDir = snapshotDirByBranch(branchName);
         if (!fileIO.exists(snapshotDir)) {
             return null;
@@ -422,10 +403,10 @@ public class SnapshotManager implements Serializable {
             }
         }
 
-        return findByListFiles(Math::max, branchName);
+        return findByListFiles(Math::max);
     }
 
-    private @Nullable Long findEarliest(String branchName) throws IOException {
+    private @Nullable Long findEarliest() throws IOException {
         Path snapshotDir = snapshotDirByBranch(branchName);
         if (!fileIO.exists(snapshotDir)) {
             return null;
@@ -437,7 +418,7 @@ public class SnapshotManager implements Serializable {
             return snapshotId;
         }
 
-        return findByListFiles(Math::min, branchName);
+        return findByListFiles(Math::min);
     }
 
     public Long readHint(String fileName) {
@@ -463,8 +444,7 @@ public class SnapshotManager implements Serializable {
         return null;
     }
 
-    private Long findByListFiles(BinaryOperator<Long> reducer, String branchName)
-            throws IOException {
+    private Long findByListFiles(BinaryOperator<Long> reducer) throws IOException {
         Path snapshotDir = snapshotDirByBranch(branchName);
         return listVersionedFiles(fileIO, snapshotDir, SNAPSHOT_PREFIX)
                 .reduce(reducer)

@@ -338,8 +338,8 @@ public class HiveCatalog extends AbstractCatalog {
             throw new TableNotExistException(identifier);
         }
         Path tableLocation = getDataTableLocation(identifier);
-        return new SchemaManager(fileIO, tableLocation)
-                .latest(branchName)
+        return new SchemaManager(fileIO, tableLocation, branchName)
+                .latest()
                 .orElseThrow(
                         () -> new RuntimeException("There is no paimon table in " + tableLocation));
     }
@@ -371,7 +371,7 @@ public class HiveCatalog extends AbstractCatalog {
         // if changes on Hive fails there is no harm to perform the same changes to files again
         TableSchema tableSchema;
         try {
-            tableSchema = schemaManager(identifier).createTable(schema, branchName);
+            tableSchema = schemaManager(identifier).createTable(schema);
         } catch (Exception e) {
             throw new RuntimeException(
                     "Failed to commit changes of table "
@@ -409,7 +409,7 @@ public class HiveCatalog extends AbstractCatalog {
             client.alter_table(fromDB, fromTableName, table);
 
             Path fromPath = getDataTableLocation(fromTable);
-            if (new SchemaManager(fileIO, fromPath).listAllIds().size() > 0) {
+            if (new SchemaManager(fileIO, fromPath, branchName).listAllIds().size() > 0) {
                 // Rename the file system's table directory. Maintain consistency between tables in
                 // the file system and tables in the Hive Metastore.
                 Path toPath = getDataTableLocation(toTable);
@@ -438,7 +438,7 @@ public class HiveCatalog extends AbstractCatalog {
 
         final SchemaManager schemaManager = schemaManager(identifier);
         // first commit changes to underlying files
-        TableSchema schema = schemaManager.commitChanges(branchName, changes);
+        TableSchema schema = schemaManager.commitChanges(changes);
 
         try {
             // sync to hive hms
@@ -448,7 +448,7 @@ public class HiveCatalog extends AbstractCatalog {
             client.alter_table(
                     identifier.getDatabaseName(), identifier.getObjectName(), table, true);
         } catch (Exception te) {
-            schemaManager.deleteSchema(branchName, schema.id());
+            schemaManager.deleteSchema(schema.id());
             throw new RuntimeException(te);
         }
     }
@@ -588,11 +588,13 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     private boolean schemaFileExists(Identifier identifier) {
-        return new SchemaManager(fileIO, getDataTableLocation(identifier)).latest().isPresent();
+        return new SchemaManager(fileIO, getDataTableLocation(identifier), branchName)
+                .latest()
+                .isPresent();
     }
 
     private SchemaManager schemaManager(Identifier identifier) {
-        return new SchemaManager(fileIO, getDataTableLocation(identifier))
+        return new SchemaManager(fileIO, getDataTableLocation(identifier), branchName)
                 .withLock(lock(identifier));
     }
 
