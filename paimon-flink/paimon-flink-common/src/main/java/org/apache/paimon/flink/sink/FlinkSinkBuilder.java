@@ -18,6 +18,7 @@
 
 package org.apache.paimon.flink.sink;
 
+import org.apache.paimon.CoreOptions;
 import org.apache.paimon.data.InternalRow;
 import org.apache.paimon.flink.sink.index.GlobalDynamicBucketSink;
 import org.apache.paimon.table.BucketMode;
@@ -86,6 +87,11 @@ public class FlinkSinkBuilder {
 
     public FlinkSinkBuilder forCompact(boolean compactSink) {
         this.compactSink = compactSink;
+        return this;
+    }
+
+    public FlinkSinkBuilder toBranch(String branch) {
+        table.options().put(CoreOptions.BRANCH.key(), branch);
         return this;
     }
 

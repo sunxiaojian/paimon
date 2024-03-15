@@ -27,6 +27,7 @@ import org.apache.paimon.schema.SchemaManager;
 import org.apache.paimon.table.BucketMode;
 import org.apache.paimon.table.FileStoreTable;
 import org.apache.paimon.table.Table;
+import org.apache.paimon.utils.BranchManager;
 import org.apache.paimon.utils.Preconditions;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -65,6 +66,7 @@ public class CdcSinkBuilder<T> {
 
     public CdcSinkBuilder<T> withTable(Table table) {
         this.table = table;
+        this.table.options().put(CoreOptions.BRANCH.key(), BranchManager.DEFAULT_MAIN_BRANCH);
         return this;
     }
 
@@ -80,6 +82,11 @@ public class CdcSinkBuilder<T> {
 
     public CdcSinkBuilder<T> withCatalogLoader(Catalog.Loader catalogLoader) {
         this.catalogLoader = catalogLoader;
+        return this;
+    }
+
+    public CdcSinkBuilder<T> toBranch(String branch) {
+        this.table.options().put(CoreOptions.BRANCH.key(), branch);
         return this;
     }
 

@@ -101,11 +101,8 @@ public class CoreOptions implements Serializable {
                     .noDefaultValue()
                     .withDescription("The file path of this table in the filesystem.");
 
-    public static final ConfigOption<String> BRANCH_NAME =
-            key("branch-name")
-                    .stringType()
-                    .defaultValue("main")
-                    .withDescription("Specify branch name.");
+    public static final ConfigOption<String> BRANCH =
+            key("branch").stringType().defaultValue("main").withDescription("Specify branch name.");
 
     public static final ConfigOption<FileFormatType> FILE_FORMAT =
             key("file.format")
@@ -1116,10 +1113,10 @@ public class CoreOptions implements Serializable {
     }
 
     public static String branch(Map<String, String> options) {
-        if (options.containsKey(BRANCH_NAME.key())) {
-            return options.get(BRANCH_NAME.key());
+        if (options.containsKey(BRANCH.key())) {
+            return options.get(BRANCH.key());
         }
-        return BRANCH_NAME.defaultValue();
+        return BRANCH.defaultValue();
     }
 
     public static Path path(Map<String, String> options) {
