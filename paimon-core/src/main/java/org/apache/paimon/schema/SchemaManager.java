@@ -182,6 +182,10 @@ public class SchemaManager implements Serializable {
         return commitChanges(branch, Arrays.asList(changes));
     }
 
+    public TableSchema commitChanges(List<SchemaChange> changes) throws Catalog.ColumnAlreadyExistException, Catalog.TableNotExistException, Catalog.ColumnNotExistException {
+        return commitChanges(branch, changes);
+    }
+
     /** Update {@link SchemaChange}s. */
     public TableSchema commitChanges(String branch, List<SchemaChange> changes)
             throws Catalog.TableNotExistException, Catalog.ColumnAlreadyExistException,
