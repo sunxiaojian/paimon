@@ -327,7 +327,7 @@ public class JdbcCatalog extends AbstractCatalog {
             throw new TableNotExistException(identifier);
         }
         Path tableLocation = getDataTableLocation(identifier);
-        return new SchemaManager(fileIO, tableLocation,branchName)
+        return new SchemaManager(fileIO, tableLocation, branchName)
                 .latest()
                 .orElseThrow(
                         () -> new RuntimeException("There is no paimon table in " + tableLocation));

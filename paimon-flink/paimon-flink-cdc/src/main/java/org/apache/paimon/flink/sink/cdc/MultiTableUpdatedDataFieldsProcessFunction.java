@@ -74,7 +74,9 @@ public class MultiTableUpdatedDataFieldsProcessFunction
                                 return null;
                             }
                             return new SchemaManager(
-                                    table.fileIO(), table.location(), CoreOptions.branch(table.options()));
+                                    table.fileIO(),
+                                    table.location(),
+                                    CoreOptions.branch(table.options()));
                         });
 
         if (Objects.isNull(schemaManager)) {

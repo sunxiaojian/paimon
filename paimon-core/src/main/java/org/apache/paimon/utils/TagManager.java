@@ -54,10 +54,16 @@ public class TagManager {
 
     private final FileIO fileIO;
     private final Path tablePath;
+    private final String branch;
 
     public TagManager(FileIO fileIO, Path tablePath) {
+        this(fileIO, tablePath, DEFAULT_MAIN_BRANCH);
+    }
+
+    public TagManager(FileIO fileIO, Path tablePath, String branch) {
         this.fileIO = fileIO;
         this.tablePath = tablePath;
+        this.branch = branch;
     }
 
     /** Return the root Directory of tags. */
@@ -85,7 +91,7 @@ public class TagManager {
     }
 
     public void createTag(Snapshot snapshot, String tagName, List<TagCallback> callbacks) {
-        createTag(snapshot, tagName, callbacks, DEFAULT_MAIN_BRANCH);
+        createTag(snapshot, tagName, callbacks, branch);
     }
 
     /** Create a tag from given snapshot and save it in the storage. */
@@ -139,7 +145,7 @@ public class TagManager {
 
     public void deleteTag(
             String tagName, TagDeletion tagDeletion, SnapshotManager snapshotManager) {
-        deleteTag(tagName, tagDeletion, snapshotManager, DEFAULT_MAIN_BRANCH);
+        deleteTag(tagName, tagDeletion, snapshotManager, branch);
     }
 
     public void deleteTag(
@@ -188,7 +194,7 @@ public class TagManager {
             skippedSnapshots.add(taggedSnapshots.get(index - 1));
         }
         // the nearest right neighbor
-        Snapshot right = snapshotManager.earliestSnapshot();
+        Snapshot right = snapshotManager.earliestSnapshot(branch);
         if (index + 1 < taggedSnapshots.size()) {
             Snapshot rightTag = taggedSnapshots.get(index + 1);
             right = right.id() < rightTag.id() ? right : rightTag;

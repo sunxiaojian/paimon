@@ -714,7 +714,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
         Path newSnapshotPath =
                 branchName.equals(DEFAULT_MAIN_BRANCH)
                         ? snapshotManager.snapshotPath(newSnapshotId)
-                        : snapshotManager.branchSnapshotPath(branchName, newSnapshotId);
+                        : snapshotManager.snapshotPath(branchName, newSnapshotId);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Ready to commit table files to snapshot #" + newSnapshotId);

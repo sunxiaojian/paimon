@@ -52,7 +52,8 @@ public class UnawareBucketCompactionSink extends FlinkSink<AppendOnlyCompactionT
     protected Committer.Factory<Committable, ManifestCommittable> createCommitterFactory(
             boolean streamingCheckpointEnabled) {
         return (s, metricGroup) ->
-                new StoreCommitter(table.newCommit(s, CoreOptions.branch(table.options())), metricGroup);
+                new StoreCommitter(
+                        table.newCommit(s, CoreOptions.branch(table.options())), metricGroup);
     }
 
     @Override

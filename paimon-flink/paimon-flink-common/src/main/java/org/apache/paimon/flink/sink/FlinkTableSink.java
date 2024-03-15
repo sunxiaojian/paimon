@@ -51,8 +51,7 @@ public class FlinkTableSink extends SupportsRowLevelOperationFlinkTableSink
                 ((FileStoreTable) table)
                         .store()
                         .newCommit(
-                                UUID.randomUUID().toString(),
-                                CoreOptions.branch(table.options()));
+                                UUID.randomUUID().toString(), CoreOptions.branch(table.options()));
         long identifier = BatchWriteBuilder.COMMIT_IDENTIFIER;
         commit.purgeTable(identifier);
     }
