@@ -63,7 +63,7 @@ public class TagManager {
     public TagManager(FileIO fileIO, Path tablePath, String branch) {
         this.fileIO = fileIO;
         this.tablePath = tablePath;
-        this.branch = branch;
+        this.branch = StringUtils.isBlank(branch) ? DEFAULT_MAIN_BRANCH : branch;
     }
 
     /** Return the root Directory of tags. */
@@ -96,7 +96,7 @@ public class TagManager {
 
     /** Create a tag from given snapshot and save it in the storage. */
     public void createTag(
-            Snapshot snapshot, String tagName, List<TagCallback> callbacks, String branchName) {
+            Snapshot snapshot, String tagName, List<TagCallback> callbacks, String branch) {
         checkArgument(!StringUtils.isBlank(tagName), "Tag name '%s' is blank.", tagName);
         checkArgument(!tagExists(branchName, tagName), "Tag name '%s' already exists.", tagName);
 
@@ -334,7 +334,7 @@ public class TagManager {
     }
 
     public List<String> sortTagsOfOneSnapshot(List<String> tagNames) {
-        return sortTagsOfOneSnapshot(DEFAULT_MAIN_BRANCH, tagNames);
+        return sortTagsOfOneSnapshot(branch, tagNames);
     }
 
     public List<String> sortTagsOfOneSnapshot(String branchName, List<String> tagNames) {
