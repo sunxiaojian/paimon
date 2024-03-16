@@ -72,10 +72,10 @@ public class TagManager {
     }
 
     /** Return the root Directory of tags. */
-    public Path tagDirectory(String branchName) {
-        return branchName.equals(DEFAULT_MAIN_BRANCH)
+    public Path tagDirectory(String branch) {
+        return branch.equals(DEFAULT_MAIN_BRANCH)
                 ? tagDirectory()
-                : new Path(getBranchPath(tablePath, branchName) + "/tag");
+                : new Path(getBranchPath(tablePath, branch) + "/tag");
     }
 
     /** Return the path of a tag. */
@@ -84,10 +84,10 @@ public class TagManager {
     }
 
     /** Return the path of a tag in branch. */
-    public Path tagPath(String branchName, String tagName) {
-        return branchName.equals(DEFAULT_MAIN_BRANCH)
+    public Path tagPath(String branch, String tagName) {
+        return branch.equals(DEFAULT_MAIN_BRANCH)
                 ? tagPath(tagName)
-                : new Path(getBranchPath(tablePath, branchName) + "/tag/" + TAG_PREFIX + tagName);
+                : new Path(getBranchPath(tablePath, branch) + "/tag/" + TAG_PREFIX + tagName);
     }
 
     public void createTag(Snapshot snapshot, String tagName, List<TagCallback> callbacks) {
@@ -98,9 +98,9 @@ public class TagManager {
     public void createTag(
             Snapshot snapshot, String tagName, List<TagCallback> callbacks, String branch) {
         checkArgument(!StringUtils.isBlank(tagName), "Tag name '%s' is blank.", tagName);
-        checkArgument(!tagExists(branchName, tagName), "Tag name '%s' already exists.", tagName);
+        checkArgument(!tagExists(branch, tagName), "Tag name '%s' already exists.", tagName);
 
-        Path newTagPath = tagPath(branchName, tagName);
+        Path newTagPath = tagPath(branch, tagName);
         try {
             fileIO.writeFileUtf8(newTagPath, snapshot.toJson());
         } catch (IOException e) {
@@ -126,8 +126,8 @@ public class TagManager {
             List<String> tagNames,
             TagDeletion tagDeletion,
             SnapshotManager snapshotManager,
-            String branchName) {
-        Snapshot taggedSnapshot = taggedSnapshot(branchName, tagNames.get(0));
+            String branch) {
+        Snapshot taggedSnapshot = taggedSnapshot(branch, tagNames.get(0));
         List<Snapshot> taggedSnapshots;
 
         // skip file deletion if snapshot exists
@@ -136,11 +136,11 @@ public class TagManager {
             return;
         } else {
             // FileIO discovers tags by tag file, so we should read all tags before we delete tag
-            taggedSnapshots = taggedSnapshots(branchName);
-            tagNames.forEach(tagName -> fileIO.deleteQuietly(tagPath(branchName, tagName)));
+            taggedSnapshots = taggedSnapshots(branch);
+            tagNames.forEach(tagName -> fileIO.deleteQuietly(tagPath(branch, tagName)));
         }
 
-        doClean(taggedSnapshot, taggedSnapshots, snapshotManager, tagDeletion, branchName);
+        doClean(taggedSnapshot, taggedSnapshots, snapshotManager, tagDeletion, branch);
     }
 
     public void deleteTag(
@@ -152,21 +152,21 @@ public class TagManager {
             String tagName,
             TagDeletion tagDeletion,
             SnapshotManager snapshotManager,
-            String branchName) {
+            String branch) {
         checkArgument(!StringUtils.isBlank(tagName), "Tag name '%s' is blank.", tagName);
-        checkArgument(tagExists(branchName, tagName), "Tag '%s' doesn't exist.", tagName);
+        checkArgument(tagExists(branch, tagName), "Tag '%s' doesn't exist.", tagName);
 
-        Snapshot taggedSnapshot = taggedSnapshot(branchName, tagName);
+        Snapshot taggedSnapshot = taggedSnapshot(branch, tagName);
         List<Snapshot> taggedSnapshots;
 
         // skip file deletion if snapshot exists
         if (snapshotManager.snapshotExists(taggedSnapshot.id())) {
-            fileIO.deleteQuietly(tagPath(branchName, tagName));
+            fileIO.deleteQuietly(tagPath(branch, tagName));
             return;
         } else {
             // FileIO discovers tags by tag file, so we should read all tags before we delete tag
             SortedMap<Snapshot, List<String>> tags = tags();
-            fileIO.deleteQuietly(tagPath(branchName, tagName));
+            fileIO.deleteQuietly(tagPath(branch, tagName));
 
             // skip data file clean if more than 1 tags are created based on this snapshot
             if (tags.get(taggedSnapshot).size() > 1) {
@@ -175,7 +175,7 @@ public class TagManager {
             taggedSnapshots = new ArrayList<>(tags.keySet());
         }
 
-        doClean(taggedSnapshot, taggedSnapshots, snapshotManager, tagDeletion, branchName);
+        doClean(taggedSnapshot, taggedSnapshots, snapshotManager, tagDeletion, branch);
     }
 
     private void doClean(
@@ -183,7 +183,7 @@ public class TagManager {
             List<Snapshot> taggedSnapshots,
             SnapshotManager snapshotManager,
             TagDeletion tagDeletion,
-            String branchName) {
+            String branch) {
         // collect skipping sets from the left neighbor tag and the nearest right neighbor (either
         // the earliest snapshot or right neighbor tag)
         List<Snapshot> skippedSnapshots = new ArrayList<>();
@@ -225,8 +225,8 @@ public class TagManager {
     }
 
     /** Check if a branch tag exists. */
-    public boolean tagExists(String branchName, String tagName) {
-        Path path = tagPath(branchName, tagName);
+    public boolean tagExists(String branch, String tagName) {
+        Path path = tagPath(branch, tagName);
         try {
             return fileIO.exists(path);
         } catch (IOException e) {
@@ -248,14 +248,14 @@ public class TagManager {
     }
 
     /** Get the tagged snapshot by name. */
-    public Snapshot taggedSnapshot(String branchName, String tagName) {
-        checkArgument(tagExists(branchName, tagName), "Tag '%s' doesn't exist.", tagName);
-        return Snapshot.fromPath(fileIO, tagPath(branchName, tagName));
+    public Snapshot taggedSnapshot(String branch, String tagName) {
+        checkArgument(tagExists(branch, tagName), "Tag '%s' doesn't exist.", tagName);
+        return Snapshot.fromPath(fileIO, tagPath(branch, tagName));
     }
 
-    public long tagCount(String branchName) {
+    public long tagCount(String branch) {
         try {
-            return listVersionedFileStatus(fileIO, tagDirectory(branchName), TAG_PREFIX).count();
+            return listVersionedFileStatus(fileIO, tagDirectory(branch), TAG_PREFIX).count();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -275,13 +275,13 @@ public class TagManager {
     }
 
     /** Get all tagged snapshots sorted by snapshot id. */
-    public List<Snapshot> taggedSnapshots(String branchName) {
-        return new ArrayList<>(tags(branchName).keySet());
+    public List<Snapshot> taggedSnapshots(String branch) {
+        return new ArrayList<>(tags(branch).keySet());
     }
 
     /** Get all tagged snapshots with names sorted by snapshot id. */
-    public SortedMap<Snapshot, List<String>> tags(String branchName) {
-        return tags(branchName, tagName -> true);
+    public SortedMap<Snapshot, List<String>> tags(String branch) {
+        return tags(branch, tagName -> true);
     }
 
     /** Get all tagged snapshots with names sorted by snapshot id. */
@@ -304,12 +304,12 @@ public class TagManager {
      *     name.
      * @throws RuntimeException if an IOException occurs during retrieval of snapshots.
      */
-    public SortedMap<Snapshot, List<String>> tags(String branchName, Predicate<String> filter) {
+    public SortedMap<Snapshot, List<String>> tags(String branch, Predicate<String> filter) {
         TreeMap<Snapshot, List<String>> tags =
                 new TreeMap<>(Comparator.comparingLong(Snapshot::id));
         try {
             List<Path> paths =
-                    listVersionedFileStatus(fileIO, tagDirectory(branchName), TAG_PREFIX)
+                    listVersionedFileStatus(fileIO, tagDirectory(branch), TAG_PREFIX)
                             .map(FileStatus::getPath)
                             .collect(Collectors.toList());
 
@@ -337,12 +337,12 @@ public class TagManager {
         return sortTagsOfOneSnapshot(branch, tagNames);
     }
 
-    public List<String> sortTagsOfOneSnapshot(String branchName, List<String> tagNames) {
+    public List<String> sortTagsOfOneSnapshot(String branch, List<String> tagNames) {
         return tagNames.stream()
                 .map(
                         name -> {
                             try {
-                                return fileIO.getFileStatus(tagPath(branchName, name));
+                                return fileIO.getFileStatus(tagPath(branch, name));
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
