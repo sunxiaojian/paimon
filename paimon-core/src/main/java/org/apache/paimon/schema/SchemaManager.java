@@ -104,7 +104,7 @@ public class SchemaManager implements Serializable {
         try {
             return listVersionedFiles(fileIO, schemaDirectory(branch), SCHEMA_PREFIX)
                     .reduce(Math::max)
-                    .map(this::schema);
+                    .map(id -> schema(id, branch));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
