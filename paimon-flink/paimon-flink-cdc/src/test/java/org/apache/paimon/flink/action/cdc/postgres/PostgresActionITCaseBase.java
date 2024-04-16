@@ -19,6 +19,7 @@
 package org.apache.paimon.flink.action.cdc.postgres;
 
 import org.apache.paimon.flink.action.cdc.CdcActionITCaseBase;
+import org.apache.paimon.flink.action.cdc.mysql.MySqlSyncDatabaseAction;
 
 import com.ververica.cdc.connectors.postgres.source.PostgresConnectionPoolFactory;
 import com.ververica.cdc.connectors.postgres.source.config.PostgresSourceOptions;
@@ -119,6 +120,11 @@ public class PostgresActionITCaseBase extends CdcActionITCaseBase {
         return "paimon_" + id;
     }
 
+    protected PostgresSyncDatabaseActionBuilder syncDatabaseActionBuilder(
+            Map<String, String> postgresConfig) {
+        return new PostgresSyncDatabaseActionBuilder(postgresConfig);
+    }
+
     protected PostgresSyncTableActionBuilder syncTableActionBuilder(
             Map<String, String> postgresConfig) {
         return new PostgresSyncTableActionBuilder(postgresConfig);
@@ -130,6 +136,15 @@ public class PostgresActionITCaseBase extends CdcActionITCaseBase {
 
         public PostgresSyncTableActionBuilder(Map<String, String> postgresConfig) {
             super(PostgresSyncTableAction.class, postgresConfig);
+        }
+    }
+
+    /** Builder to build {@link MySqlSyncDatabaseAction} from action arguments. */
+    protected class PostgresSyncDatabaseActionBuilder
+            extends SyncDatabaseActionBuilder<PostgresSyncDatabaseAction> {
+
+        public PostgresSyncDatabaseActionBuilder(Map<String, String> postgresConfig) {
+            super(PostgresSyncDatabaseAction.class, postgresConfig);
         }
     }
 }

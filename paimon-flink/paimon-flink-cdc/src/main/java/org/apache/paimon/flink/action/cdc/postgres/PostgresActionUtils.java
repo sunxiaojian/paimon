@@ -19,11 +19,13 @@
 package org.apache.paimon.flink.action.cdc.postgres;
 
 import org.apache.paimon.catalog.Identifier;
+import org.apache.paimon.flink.action.MultiTablesSinkMode;
 import org.apache.paimon.flink.action.cdc.TypeMapping;
 import org.apache.paimon.flink.action.cdc.schema.JdbcSchemaUtils;
 import org.apache.paimon.flink.action.cdc.schema.JdbcSchemasInfo;
 import org.apache.paimon.options.OptionsUtils;
 import org.apache.paimon.schema.Schema;
+import org.apache.paimon.utils.Pair;
 
 import com.ververica.cdc.connectors.base.options.StartupOptions;
 import com.ververica.cdc.connectors.base.source.jdbc.JdbcIncrementalSource;
@@ -46,7 +48,10 @@ import java.util.Properties;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import static org.apache.paimon.flink.action.MultiTablesSinkMode.COMBINED;
+import static org.apache.paimon.flink.action.MultiTablesSinkMode.DIVIDED;
 import static org.apache.paimon.flink.action.cdc.postgres.PostgresTypeUtils.toPaimonTypeVisitor;
 
 /** Utils for Postgres Action. */
@@ -69,7 +74,7 @@ public class PostgresActionUtils {
     public static JdbcSchemasInfo getPostgresTableInfos(
             Configuration postgresConfig,
             Predicate<String> monitorTablePredication,
-            List<Identifier> excludedTables,
+            List<Pair<Identifier, String>> excludedTables,
             TypeMapping typeMapping)
             throws Exception {
 
@@ -105,7 +110,7 @@ public class PostgresActionUtils {
                                                 toPaimonTypeVisitor());
                                 jdbcSchemasInfo.addSchema(identifier, schemaName, schema);
                             } else {
-                                excludedTables.add(identifier);
+                                excludedTables.add(Pair.of(identifier, schemaName));
                             }
                         }
                     }
@@ -173,6 +178,49 @@ public class PostgresActionUtils {
         JsonDebeziumDeserializationSchema schema =
                 new JsonDebeziumDeserializationSchema(true, customConverterConfigs);
         return sourceBuilder.deserializer(schema).includeSchemaChanges(true).build();
+    }
+
+    public static String tableList(
+            MultiTablesSinkMode mode,
+            String schemaPattern,
+            String includingTablePattern,
+            List<Pair<Identifier, String>> monitoredTables,
+            List<Pair<Identifier, String>> excludedTables) {
+        if (mode == DIVIDED) {
+            return dividedModeTableList(monitoredTables);
+        } else if (mode == COMBINED) {
+            return combinedModeTableList(schemaPattern, includingTablePattern, excludedTables);
+        }
+        throw new UnsupportedOperationException("Unknown MultiTablesSinkMode: " + mode);
+    }
+
+    private static String dividedModeTableList(List<Pair<Identifier, String>> monitoredTables) {
+        // In DIVIDED mode, we only concern about existed tables
+        return monitoredTables.stream()
+                .map(t -> t.getRight() + "\\." + t.getLeft().getObjectName())
+                .collect(Collectors.joining("|"));
+    }
+
+    public static String combinedModeTableList(
+            String schemaPattern,
+            String includingTablePattern,
+            List<Pair<Identifier, String>> excludedTables) {
+        String includingPattern =
+                String.format("(%s)\\.(%s)", schemaPattern, includingTablePattern);
+        if (excludedTables.isEmpty()) {
+            return includingPattern;
+        }
+
+        String excludingPattern =
+                excludedTables.stream()
+                        .map(
+                                t ->
+                                        String.format(
+                                                "(^%s$)",
+                                                t.getRight() + "\\." + t.getLeft().getObjectName()))
+                        .collect(Collectors.joining("|"));
+        excludingPattern = "?!" + excludingPattern;
+        return String.format("(%s)(%s)", excludingPattern, includingPattern);
     }
 
     public static void registerJdbcDriver() {
