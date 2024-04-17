@@ -223,14 +223,14 @@ public class PostgresSyncDatabaseActionITCase extends PostgresActionITCaseBase {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(
                         "table-name cannot be set for postgres_sync_database. "
-                                + "If you want to sync several Postgres tables into one Paimon table, "
+                                + "If you want to sync several PostgreSQL tables into one Paimon table, "
                                 + "use postgres_sync_table instead.");
     }
 
     @Test
     public void testInvalidDatabase() {
         Map<String, String> postgresConfig = getBasicPostgresConfig();
-        postgresConfig.put("database-name", "invalid");
+        postgresConfig.put("schema-name", "invalid");
 
         PostgresSyncDatabaseAction action = syncDatabaseActionBuilder(postgresConfig).build();
 
@@ -264,7 +264,7 @@ public class PostgresSyncDatabaseActionITCase extends PostgresActionITCaseBase {
                         .build();
         runActionWithDefaultEnv(action);
 
-        // validate `compatible` can be synchronized
+        // validate compatible can be synchronized
         try (Statement statement = getStatement(DATABASE_NAME)) {
             FileStoreTable table = getFileStoreTable("compatible");
 
@@ -605,7 +605,7 @@ public class PostgresSyncDatabaseActionITCase extends PostgresActionITCaseBase {
             statement.executeUpdate("CREATE TABLE t2 (k INT, v1 VARCHAR(10), PRIMARY KEY (k))");
             statement.executeUpdate("INSERT INTO t2 VALUES (1, 'Hi')");
 
-            statement.executeUpdate("CREATE TABLE t22 LIKE t2");
+            statement.executeUpdate("CREATE TABLE t22 (LIKE t2 INCLUDING ALL)");
             statement.executeUpdate("INSERT INTO t22 VALUES (1, 'Hello')");
 
             // not synchronized tables: ta, t3, t4
@@ -613,14 +613,14 @@ public class PostgresSyncDatabaseActionITCase extends PostgresActionITCaseBase {
             statement.executeUpdate("INSERT INTO ta VALUES (1, 'Apache')");
             statement.executeUpdate("CREATE TABLE t3 (k INT, v1 VARCHAR(10))");
             statement.executeUpdate("INSERT INTO t3 VALUES (1, 'Paimon')");
-            statement.executeUpdate("CREATE TABLE t4 SELECT * FROM t2");
+            statement.executeUpdate("CREATE TABLE t4 AS SELECT * FROM t2");
 
             statement.executeUpdate("INSERT INTO t1 VALUES (2, 'two')");
             waitForResult(Arrays.asList("+I[1, one]", "+I[2, two]"), table1, rowType, primaryKeys);
 
             // check tables
-            assertExactlyExistTables("t1", "t2", "t22");
-            assertTableNotExists("a", "ta", "t3", "t4");
+            assertExactlyExistTables("t1", "t2", "t22", "t3", "t4");
+            assertTableNotExists("a", "ta");
 
             FileStoreTable newTable = getFileStoreTable("t2");
             waitForResult(Collections.singletonList("+I[1, Hi]"), newTable, rowType, primaryKeys);
@@ -704,7 +704,7 @@ public class PostgresSyncDatabaseActionITCase extends PostgresActionITCaseBase {
 
         createNewTable(statement, newTableName);
         statement.executeUpdate(
-                String.format("INSERT INTO `%s`.`t2` VALUES (8, 'eight', 80, 800)", schemaName));
+                String.format("INSERT INTO %s.t2 VALUES (8, 'eight', 80, 800)", schemaName));
         List<Tuple2<Integer, String>> newTableRecords = getNewTableRecords();
         recordsMap.put(newTableName, newTableRecords);
         List<String> newTableExpected = getNewTableExpected(newTableRecords);
@@ -763,7 +763,7 @@ public class PostgresSyncDatabaseActionITCase extends PostgresActionITCaseBase {
         newTableExpected = getNewTableExpected(records);
         statement.executeUpdate(
                 String.format(
-                        "INSERT INTO `%s`.`%s` VALUES (80, 'eighty')", schemaName, tableName));
+                        "INSERT INTO %s.%s VALUES (80, 'eighty')", schemaName, tableName));
 
         waitForResult(newTableExpected, newTable, newTableRowType, newTablePrimaryKeys);
 
@@ -775,10 +775,10 @@ public class PostgresSyncDatabaseActionITCase extends PostgresActionITCaseBase {
 
             statement.executeUpdate(
                     String.format(
-                            "ALTER TABLE `%s`.`%s` ADD COLUMN v2 INT", schemaName, tableName));
+                            "ALTER TABLE %s.%s ADD COLUMN v2 INT", schemaName, tableName));
             statement.executeUpdate(
                     String.format(
-                            "INSERT INTO `%s`.`%s` VALUES (100, 'hundred', 10000)",
+                            "INSERT INTO %s.%s VALUES (100, 'hundred', 10000)",
                             schemaName, tableName));
 
             List<String> expectedRecords =
@@ -825,7 +825,7 @@ public class PostgresSyncDatabaseActionITCase extends PostgresActionITCaseBase {
             throws SQLException {
         String sql =
                 String.format(
-                        "INSERT INTO `%s`.`%s` VALUES %s",
+                        "INSERT INTO %s.%s VALUES %s",
                         databaseName,
                         newTableName,
                         newTableRecords.stream()
@@ -939,7 +939,6 @@ public class PostgresSyncDatabaseActionITCase extends PostgresActionITCaseBase {
 
     @Test
     @Timeout(60)
-    @Disabled
     public void testSyncMultipleShards() throws Exception {
         Map<String, String> postgresConfig = getBasicPostgresConfig();
 

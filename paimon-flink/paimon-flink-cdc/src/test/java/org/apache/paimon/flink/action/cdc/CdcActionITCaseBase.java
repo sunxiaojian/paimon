@@ -233,7 +233,7 @@ public class CdcActionITCaseBase extends ActionITCaseBase {
                 return PulsarSyncDatabaseActionFactory.IDENTIFIER;
             case "PostgresSyncTableAction":
                 return PostgresSyncTableActionFactory.IDENTIFIER;
-            case "PostgresSyncDatabaseActionFactory":
+            case "PostgresSyncDatabaseAction":
                 return PostgresSyncDatabaseActionFactory.IDENTIFIER;
             default:
                 throw new UnsupportedOperationException(
@@ -256,6 +256,7 @@ public class CdcActionITCaseBase extends ActionITCaseBase {
             case "PulsarSyncDatabaseAction":
                 return "--" + CdcActionCommonUtils.PULSAR_CONF;
             case "PostgresSyncTableAction":
+            case "PostgresSyncDatabaseAction":
                 return "--" + CdcActionCommonUtils.POSTGRES_CONF;
             default:
                 throw new UnsupportedOperationException(
