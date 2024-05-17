@@ -260,8 +260,7 @@ public class PrimaryKeyFileStoreTableTest extends FileStoreTableTestBase {
         generateBranch(table);
         FileStoreTable tableBranch = createFileStoreTable(BRANCH_NAME);
         writeBranchData(tableBranch);
-        List<Split> splits =
-                toSplits(tableBranch.newSnapshotReader(BRANCH_NAME).read().dataSplits());
+        List<Split> splits = toSplits(tableBranch.newSnapshotReader().read().dataSplits());
         TableRead read = tableBranch.newRead();
         assertThat(getResult(read, splits, binaryRow(1), 0, BATCH_ROW_TO_STRING))
                 .isEqualTo(
@@ -338,7 +337,7 @@ public class PrimaryKeyFileStoreTableTest extends FileStoreTableTestBase {
         List<Split> splits =
                 toSplits(
                         tableBranch
-                                .newSnapshotReader(BRANCH_NAME)
+                                .newSnapshotReader()
                                 .withMode(ScanMode.DELTA)
                                 .read()
                                 .dataSplits());
@@ -654,7 +653,7 @@ public class PrimaryKeyFileStoreTableTest extends FileStoreTableTestBase {
 
     private void writeBranchData(FileStoreTable table) throws Exception {
         StreamTableWrite write = table.newWrite(commitUser);
-        StreamTableCommit commit = table.newCommit(commitUser, BRANCH_NAME);
+        StreamTableCommit commit = table.newCommit(commitUser);
 
         write.write(rowData(1, 10, 100L));
         write.write(rowData(2, 20, 200L));

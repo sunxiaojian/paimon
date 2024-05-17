@@ -139,12 +139,6 @@ public class PrivilegedFileStore<T> implements FileStore<T> {
     }
 
     @Override
-    public FileStoreCommit newCommit(String commitUser, String branchName) {
-        privilegeChecker.assertCanInsert(identifier);
-        return wrapped.newCommit(commitUser, branchName);
-    }
-
-    @Override
     public SnapshotDeletion newSnapshotDeletion() {
         privilegeChecker.assertCanInsert(identifier);
         return wrapped.newSnapshotDeletion();

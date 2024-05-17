@@ -53,12 +53,10 @@ import org.apache.paimon.table.sink.CommitMessageImpl;
 import org.apache.paimon.table.source.DataSplit;
 import org.apache.paimon.table.source.ScanMode;
 import org.apache.paimon.types.RowType;
-import org.apache.paimon.utils.BranchManager;
 import org.apache.paimon.utils.CommitIncrement;
 import org.apache.paimon.utils.FileStorePathFactory;
 import org.apache.paimon.utils.RecordWriter;
 import org.apache.paimon.utils.SnapshotManager;
-import org.apache.paimon.utils.StringUtils;
 import org.apache.paimon.utils.TagManager;
 
 import org.slf4j.Logger;
@@ -100,8 +98,6 @@ public class TestFileStore extends KeyValueFileStore {
 
     private long commitIdentifier;
 
-    private String branch;
-
     private TestFileStore(
             String root,
             CoreOptions options,
@@ -110,11 +106,10 @@ public class TestFileStore extends KeyValueFileStore {
             RowType valueType,
             KeyValueFieldsExtractor keyValueFieldsExtractor,
             MergeFunctionFactory<KeyValue> mfFactory,
-            TableSchema tableSchema,
-            String branch) {
+            TableSchema tableSchema) {
         super(
                 FileIOFinder.find(new Path(root)),
-                schemaManager(root, options, branch),
+                schemaManager(root, options),
                 tableSchema != null
                         ? tableSchema
                         : new TableSchema(
@@ -142,11 +137,10 @@ public class TestFileStore extends KeyValueFileStore {
         this.commitUser = UUID.randomUUID().toString();
 
         this.commitIdentifier = 0L;
-        this.branch = branch;
     }
 
-    private static SchemaManager schemaManager(String root, CoreOptions options, String branch) {
-        return new SchemaManager(FileIOFinder.find(new Path(root)), options.path(), branch);
+    private static SchemaManager schemaManager(String root, CoreOptions options) {
+        return new SchemaManager(FileIOFinder.find(new Path(root)), options.path());
     }
 
     public AbstractFileStoreWrite<KeyValue> newWrite() {
@@ -337,7 +331,7 @@ public class TestFileStore extends KeyValueFileStore {
                     .write(kv);
         }
 
-        FileStoreCommit commit = newCommit(commitUser, branch);
+        FileStoreCommit commit = newCommit(commitUser);
         ManifestCommittable committable =
                 new ManifestCommittable(
                         identifier == null ? commitIdentifier++ : identifier, watermark);
@@ -358,12 +352,12 @@ public class TestFileStore extends KeyValueFileStore {
         }
 
         SnapshotManager snapshotManager = snapshotManager();
-        Long snapshotIdBeforeCommit = snapshotManager.latestSnapshotId(branch);
+        Long snapshotIdBeforeCommit = snapshotManager.latestSnapshotId();
         if (snapshotIdBeforeCommit == null) {
             snapshotIdBeforeCommit = Snapshot.FIRST_SNAPSHOT_ID - 1;
         }
         commitFunction.accept(commit, committable);
-        Long snapshotIdAfterCommit = snapshotManager.latestSnapshotId(branch);
+        Long snapshotIdAfterCommit = snapshotManager.latestSnapshotId();
         if (snapshotIdAfterCommit == null) {
             snapshotIdAfterCommit = Snapshot.FIRST_SNAPSHOT_ID - 1;
         }
@@ -505,18 +499,18 @@ public class TestFileStore extends KeyValueFileStore {
         // - latest should < true_latest
         // - earliest should < true_earliest
         SnapshotManager snapshotManager = snapshotManager();
-        Path snapshotDir = snapshotManager.snapshotDirectory(branch);
+        Path snapshotDir = snapshotManager.snapshotDirectory();
         Path earliest = new Path(snapshotDir, SnapshotManager.EARLIEST);
         Path latest = new Path(snapshotDir, SnapshotManager.LATEST);
         if (actualFiles.remove(earliest)) {
-            long earliestId = snapshotManager.readHint(SnapshotManager.EARLIEST, branch);
+            long earliestId = snapshotManager.readHint(SnapshotManager.EARLIEST);
             fileIO.delete(earliest, false);
-            assertThat(earliestId <= snapshotManager.earliestSnapshotId(branch)).isTrue();
+            assertThat(earliestId <= snapshotManager.earliestSnapshotId()).isTrue();
         }
         if (actualFiles.remove(latest)) {
-            long latestId = snapshotManager.readHint(SnapshotManager.LATEST, branch);
+            long latestId = snapshotManager.readHint(SnapshotManager.LATEST);
             fileIO.delete(latest, false);
-            assertThat(latestId <= snapshotManager.latestSnapshotId(branch)).isTrue();
+            assertThat(latestId <= snapshotManager.latestSnapshotId()).isTrue();
         }
         Path changelogDir = snapshotManager.changelogDirectory();
         Path earliestChangelog = new Path(changelogDir, SnapshotManager.EARLIEST);
@@ -548,9 +542,7 @@ public class TestFileStore extends KeyValueFileStore {
         Set<Path> result = new HashSet<>();
 
         SchemaManager schemaManager = new SchemaManager(fileIO, options.path());
-        schemaManager
-                .listAllIds(branch)
-                .forEach(id -> result.add(schemaManager.toSchemaPath(branch, id)));
+        schemaManager.listAllIds().forEach(id -> result.add(schemaManager.toSchemaPath(id)));
 
         SnapshotManager snapshotManager = snapshotManager();
         Long latestSnapshotId = snapshotManager.latestSnapshotId();
@@ -699,7 +691,6 @@ public class TestFileStore extends KeyValueFileStore {
         private final TableSchema tableSchema;
 
         private CoreOptions.ChangelogProducer changelogProducer;
-        private final String branch;
 
         public Builder(
                 String format,
@@ -711,30 +702,6 @@ public class TestFileStore extends KeyValueFileStore {
                 KeyValueFieldsExtractor keyValueFieldsExtractor,
                 MergeFunctionFactory<KeyValue> mfFactory,
                 TableSchema tableSchema) {
-            this(
-                    format,
-                    root,
-                    numBuckets,
-                    partitionType,
-                    keyType,
-                    valueType,
-                    keyValueFieldsExtractor,
-                    mfFactory,
-                    tableSchema,
-                    BranchManager.DEFAULT_MAIN_BRANCH);
-        }
-
-        public Builder(
-                String format,
-                String root,
-                int numBuckets,
-                RowType partitionType,
-                RowType keyType,
-                RowType valueType,
-                KeyValueFieldsExtractor keyValueFieldsExtractor,
-                MergeFunctionFactory<KeyValue> mfFactory,
-                TableSchema tableSchema,
-                String branch) {
             this.format = format;
             this.root = root;
             this.numBuckets = numBuckets;
@@ -746,7 +713,6 @@ public class TestFileStore extends KeyValueFileStore {
             this.tableSchema = tableSchema;
 
             this.changelogProducer = CoreOptions.ChangelogProducer.NONE;
-            this.branch = StringUtils.isEmpty(branch) ? BranchManager.DEFAULT_MAIN_BRANCH : branch;
         }
 
         public Builder changelogProducer(CoreOptions.ChangelogProducer changelogProducer) {
@@ -774,7 +740,6 @@ public class TestFileStore extends KeyValueFileStore {
 
             // disable dynamic-partition-overwrite in FileStoreCommit layer test
             conf.set(CoreOptions.DYNAMIC_PARTITION_OVERWRITE, false);
-            conf.set(CoreOptions.BRANCH, branch);
 
             return new TestFileStore(
                     root,
@@ -784,8 +749,7 @@ public class TestFileStore extends KeyValueFileStore {
                     valueType,
                     keyValueFieldsExtractor,
                     mfFactory,
-                    tableSchema,
-                    branch);
+                    tableSchema);
         }
     }
 }

@@ -20,6 +20,7 @@ package org.apache.paimon.utils;
 
 import org.apache.paimon.Changelog;
 import org.apache.paimon.Snapshot;
+import org.apache.paimon.annotation.VisibleForTesting;
 import org.apache.paimon.fs.FileIO;
 import org.apache.paimon.fs.FileStatus;
 import org.apache.paimon.fs.Path;
@@ -136,22 +137,18 @@ public class SnapshotManager implements Serializable {
         return snapshot(snapshotId, branch);
     }
 
-    public Changelog changelog(long snapshotId) {
-        return changelog(snapshotId, branch);
+    private Snapshot snapshot(long snapshotId, String branch) {
+        Path snapshotPath = snapshotPath(branch, snapshotId);
+        return Snapshot.fromPath(fileIO, snapshotPath);
     }
 
-    public Changelog changelog(long snapshotId, String branch) {
+    public Changelog changelog(long snapshotId) {
         Path changelogPath = longLivedChangelogPath(branch, snapshotId);
         return Changelog.fromPath(fileIO, changelogPath);
     }
 
     public Changelog longLivedChangelog(long snapshotId) {
         return Changelog.fromPath(fileIO, longLivedChangelogPath(branch, snapshotId));
-    }
-
-    public Snapshot snapshot(long snapshotId, String branch) {
-        Path snapshotPath = snapshotPath(branch, snapshotId);
-        return Snapshot.fromPath(fileIO, snapshotPath);
     }
 
     public boolean snapshotExists(long snapshotId) {
@@ -170,10 +167,6 @@ public class SnapshotManager implements Serializable {
     }
 
     public boolean longLivedChangelogExists(long snapshotId) {
-        return longLivedChangelogExists(branch, snapshotId);
-    }
-
-    public boolean longLivedChangelogExists(String branch, long snapshotId) {
         Path path = longLivedChangelogPath(branch, snapshotId);
         try {
             return fileIO.exists(path);
@@ -215,6 +208,7 @@ public class SnapshotManager implements Serializable {
         return earliestSnapshotId(branch);
     }
 
+    @VisibleForTesting
     public @Nullable Long earliestSnapshotId(String branch) {
         try {
             return findEarliest(
@@ -241,10 +235,6 @@ public class SnapshotManager implements Serializable {
     }
 
     public @Nullable Long latestLongLivedChangelogId() {
-        return latestLongLivedChangelogId(branch);
-    }
-
-    public @Nullable Long latestLongLivedChangelogId(String branch) {
         try {
             return findLatest(
                     changelogDirectory(branch),
@@ -283,11 +273,11 @@ public class SnapshotManager implements Serializable {
         return latestId;
     }
 
-    private Snapshot changelogOrSnapshot(long snapshotId, String branch) {
-        if (longLivedChangelogExists(branch, snapshotId)) {
-            return changelog(snapshotId, branch);
+    private Snapshot changelogOrSnapshot(long snapshotId) {
+        if (longLivedChangelogExists(snapshotId)) {
+            return changelog(snapshotId);
         } else {
-            return snapshot(snapshotId, branch);
+            return snapshot(snapshotId);
         }
     }
 
@@ -314,13 +304,13 @@ public class SnapshotManager implements Serializable {
             return null;
         }
 
-        if (changelogOrSnapshot(earliest, branch).timeMillis() >= timestampMills) {
+        if (changelogOrSnapshot(earliest).timeMillis() >= timestampMills) {
             return earliest - 1;
         }
 
         while (earliest < latest) {
             long mid = (earliest + latest + 1) / 2;
-            if (changelogOrSnapshot(mid, branch).timeMillis() < timestampMills) {
+            if (changelogOrSnapshot(mid).timeMillis() < timestampMills) {
                 earliest = mid;
             } else {
                 latest = mid - 1;
@@ -431,36 +421,24 @@ public class SnapshotManager implements Serializable {
     }
 
     public Iterator<Snapshot> snapshots() throws IOException {
-        return snapshots(branch);
-    }
-
-    public Iterator<Snapshot> snapshots(String branch) throws IOException {
         return listVersionedFiles(fileIO, snapshotDirectory(branch), SNAPSHOT_PREFIX)
-                .map(id -> snapshot(id, branch))
+                .map(id -> snapshot(id))
                 .sorted(Comparator.comparingLong(Snapshot::id))
                 .iterator();
     }
 
     public Iterator<Changelog> changelogs() throws IOException {
-        return changelogs(branch);
-    }
-
-    public Iterator<Changelog> changelogs(String branch) throws IOException {
         return listVersionedFiles(fileIO, changelogDirectory(branch), CHANGELOG_PREFIX)
-                .map(snapshotId -> changelog(snapshotId, branch))
+                .map(snapshotId -> changelog(snapshotId))
                 .sorted(Comparator.comparingLong(Changelog::id))
                 .iterator();
-    }
-
-    public List<Snapshot> safelyGetAllSnapshots() throws IOException {
-        return safelyGetAllSnapshots(branch);
     }
 
     /**
      * If {@link FileNotFoundException} is thrown when reading the snapshot file, this snapshot may
      * be deleted by other processes, so just skip this snapshot.
      */
-    public List<Snapshot> safelyGetAllSnapshots(String branch) throws IOException {
+    public List<Snapshot> safelyGetAllSnapshots() throws IOException {
         List<Path> paths =
                 listVersionedFiles(fileIO, snapshotDirectory(branch), SNAPSHOT_PREFIX)
                         .map(id -> snapshotPath(branch, id))
@@ -478,10 +456,6 @@ public class SnapshotManager implements Serializable {
     }
 
     public List<Changelog> safelyGetAllChangelogs() throws IOException {
-        return safelyGetAllChangelogs(branch);
-    }
-
-    public List<Changelog> safelyGetAllChangelogs(String branch) throws IOException {
         List<Path> paths =
                 listVersionedFiles(fileIO, changelogDirectory(branch), CHANGELOG_PREFIX)
                         .map(id -> longLivedChangelogPath(branch, id))
@@ -549,10 +523,6 @@ public class SnapshotManager implements Serializable {
     }
 
     public Optional<Snapshot> latestSnapshotOfUser(String user) {
-        return latestSnapshotOfUser(branch, user);
-    }
-
-    public Optional<Snapshot> latestSnapshotOfUser(String branch, String user) {
         Long latestId = latestSnapshotId(branch);
         if (latestId == null) {
             return Optional.empty();
@@ -572,14 +542,9 @@ public class SnapshotManager implements Serializable {
         return Optional.empty();
     }
 
-    public List<Snapshot> findSnapshotsForIdentifiers(
-            @Nonnull String user, List<Long> identifiers) {
-        return findSnapshotsForIdentifiers(user, identifiers, branch);
-    }
-
     /** Find the snapshot of the specified identifiers written by the specified user. */
     public List<Snapshot> findSnapshotsForIdentifiers(
-            @Nonnull String user, List<Long> identifiers, String branch) {
+            @Nonnull String user, List<Long> identifiers) {
         if (identifiers.isEmpty()) {
             return Collections.emptyList();
         }
@@ -614,18 +579,13 @@ public class SnapshotManager implements Serializable {
         fileIO.writeFileUtf8(longLivedChangelogPath(branch, id), changelog.toJson());
     }
 
-    @Nullable
-    public Snapshot traversalSnapshotsFromLatestSafely(Filter<Snapshot> checker) {
-        return traversalSnapshotsFromLatestSafely(checker, branch);
-    }
-
     /**
      * Traversal snapshots from latest to earliest safely, this is applied on the writer side
      * because the committer may delete obsolete snapshots, which may cause the writer to encounter
      * unreadable snapshots.
      */
     @Nullable
-    public Snapshot traversalSnapshotsFromLatestSafely(Filter<Snapshot> checker, String branch) {
+    public Snapshot traversalSnapshotsFromLatestSafely(Filter<Snapshot> checker) {
         Long latestId = latestSnapshotId(branch);
         if (latestId == null) {
             return null;
@@ -699,6 +659,7 @@ public class SnapshotManager implements Serializable {
         return readHint(fileName, branch);
     }
 
+    @VisibleForTesting
     public Long readHint(String fileName, String branch) {
         return readHint(fileName, snapshotDirectory(branch));
     }
@@ -727,11 +688,7 @@ public class SnapshotManager implements Serializable {
     }
 
     public void commitLatestHint(long snapshotId) throws IOException {
-        commitLatestHint(snapshotId, branch);
-    }
-
-    public void commitLatestHint(long snapshotId, String branchName) throws IOException {
-        commitHint(snapshotId, LATEST, snapshotDirectory(branchName));
+        commitHint(snapshotId, LATEST, snapshotDirectory(branch));
     }
 
     public void commitLongLivedChangelogLatestHint(long snapshotId) throws IOException {
@@ -743,11 +700,7 @@ public class SnapshotManager implements Serializable {
     }
 
     public void commitEarliestHint(long snapshotId) throws IOException {
-        commitEarliestHint(snapshotId, branch);
-    }
-
-    public void commitEarliestHint(long snapshotId, String branchName) throws IOException {
-        commitHint(snapshotId, EARLIEST, snapshotDirectory(branchName));
+        commitHint(snapshotId, EARLIEST, snapshotDirectory(branch));
     }
 
     private void commitHint(long snapshotId, String fileName, Path dir) throws IOException {

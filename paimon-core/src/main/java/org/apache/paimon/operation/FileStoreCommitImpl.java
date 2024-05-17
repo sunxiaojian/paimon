@@ -904,7 +904,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                         boolean committed =
                                 fileIO.writeFileUtf8(newSnapshotPath, newSnapshot.toJson());
                         if (committed) {
-                            snapshotManager.commitLatestHint(newSnapshotId, branchName);
+                            snapshotManager.commitLatestHint(newSnapshotId);
                         }
                         return committed;
                     };

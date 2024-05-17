@@ -138,11 +138,6 @@ abstract class AbstractFileStoreTable implements FileStoreTable {
 
     @Override
     public SnapshotReader newSnapshotReader() {
-        return newSnapshotReader(CoreOptions.branch(options()));
-    }
-
-    @Override
-    public SnapshotReader newSnapshotReader(String branchName) {
         return new SnapshotReaderImpl(
                 store().newScan(),
                 tableSchema,
@@ -308,11 +303,6 @@ abstract class AbstractFileStoreTable implements FileStoreTable {
 
     @Override
     public TableCommitImpl newCommit(String commitUser) {
-        // Compatibility with previous design, the main branch is written by default
-        return newCommit(commitUser, CoreOptions.branch(options()));
-    }
-
-    public TableCommitImpl newCommit(String commitUser, String branchName) {
         CoreOptions options = coreOptions();
         Runnable snapshotExpire = null;
         if (!options.writeOnly()) {
@@ -340,7 +330,7 @@ abstract class AbstractFileStoreTable implements FileStoreTable {
         }
 
         return new TableCommitImpl(
-                store().newCommit(commitUser, branchName),
+                store().newCommit(commitUser),
                 createCommitCallbacks(),
                 snapshotExpire,
                 options.writeOnly() ? null : store().newPartitionExpire(commitUser),

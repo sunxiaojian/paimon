@@ -36,7 +36,6 @@ import org.apache.paimon.table.FileStoreTableFactory;
 import org.apache.paimon.table.Table;
 import org.apache.paimon.table.sink.BatchWriteBuilder;
 import org.apache.paimon.table.system.SystemTableLoader;
-import org.apache.paimon.utils.BranchManager;
 import org.apache.paimon.utils.StringUtils;
 
 import javax.annotation.Nullable;

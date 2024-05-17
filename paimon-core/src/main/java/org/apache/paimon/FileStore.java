@@ -79,8 +79,6 @@ public interface FileStore<T> extends Serializable {
 
     FileStoreCommit newCommit(String commitUser);
 
-    FileStoreCommit newCommit(String commitUser, String branchName);
-
     SnapshotDeletion newSnapshotDeletion();
 
     TagManager newTagManager();
