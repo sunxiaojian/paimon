@@ -155,6 +155,7 @@ public class SnapshotManager implements Serializable {
         return snapshotExists(snapshotId, branch);
     }
 
+    // for TagManager and SnapshotManager
     public boolean snapshotExists(long snapshotId, String branch) {
         Path path = snapshotPath(branch, snapshotId);
         try {
@@ -178,10 +179,6 @@ public class SnapshotManager implements Serializable {
     }
 
     public @Nullable Snapshot latestSnapshot() {
-        return latestSnapshot(branch);
-    }
-
-    public @Nullable Snapshot latestSnapshot(String branch) {
         Long snapshotId = latestSnapshotId(branch);
         return snapshotId == null ? null : snapshot(snapshotId, branch);
     }
