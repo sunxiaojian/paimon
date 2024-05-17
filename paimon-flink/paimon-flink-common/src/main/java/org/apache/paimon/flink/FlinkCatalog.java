@@ -519,7 +519,11 @@ public class FlinkCatalog extends AbstractCatalog {
                         });
 
         try {
-            catalog.alterTable(toIdentifier(tablePath), changes, ignoreIfNotExists);
+            catalog.alterTable(
+                    toIdentifier(tablePath),
+                    changes,
+                    ignoreIfNotExists,
+                    CoreOptions.branch(newTable.getOptions()));
         } catch (Catalog.TableNotExistException e) {
             throw new TableNotExistException(getName(), tablePath);
         } catch (Catalog.ColumnAlreadyExistException | Catalog.ColumnNotExistException e) {
@@ -586,7 +590,11 @@ public class FlinkCatalog extends AbstractCatalog {
         }
 
         try {
-            catalog.alterTable(toIdentifier(tablePath), changes, ignoreIfNotExists);
+            catalog.alterTable(
+                    toIdentifier(tablePath),
+                    changes,
+                    ignoreIfNotExists,
+                    CoreOptions.branch(newTable.getOptions()));
         } catch (Catalog.TableNotExistException
                 | Catalog.ColumnAlreadyExistException
                 | Catalog.ColumnNotExistException e) {

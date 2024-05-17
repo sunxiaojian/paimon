@@ -26,6 +26,7 @@ import org.apache.paimon.schema.Schema;
 import org.apache.paimon.schema.SchemaChange;
 import org.apache.paimon.schema.SchemaManager;
 import org.apache.paimon.schema.TableSchema;
+import org.apache.paimon.utils.BranchManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,6 +122,10 @@ public class FileSystemCatalog extends AbstractCatalog {
     }
 
     private SchemaManager schemaManager(Identifier identifier) {
+        return schemaManager(identifier, BranchManager.DEFAULT_MAIN_BRANCH);
+    }
+
+    private SchemaManager schemaManager(Identifier identifier, String branch) {
         Path path = getDataTableLocation(identifier);
         CatalogLock catalogLock =
                 lockFactory()
@@ -133,7 +138,7 @@ public class FileSystemCatalog extends AbstractCatalog {
                                                                         new RuntimeException(
                                                                                 "No lock context when lock is enabled."))))
                         .orElse(null);
-        return new SchemaManager(fileIO, path)
+        return new SchemaManager(fileIO, path, branch)
                 .withLock(catalogLock == null ? null : Lock.fromCatalog(catalogLock, identifier));
     }
 
@@ -145,9 +150,9 @@ public class FileSystemCatalog extends AbstractCatalog {
     }
 
     @Override
-    protected void alterTableImpl(Identifier identifier, List<SchemaChange> changes)
+    protected void alterTableImpl(Identifier identifier, List<SchemaChange> changes, String branch)
             throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException {
-        schemaManager(identifier).commitChanges(changes);
+        schemaManager(identifier, branch).commitChanges(changes);
     }
 
     protected static <T> T uncheck(Callable<T> callable) {

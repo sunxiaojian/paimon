@@ -93,8 +93,9 @@ public class PrivilegedCatalog implements Catalog {
     }
 
     @Override
-    public Optional<MetastoreClient.Factory> metastoreClientFactory(Identifier identifier) {
-        return wrapped.metastoreClientFactory(identifier);
+    public Optional<MetastoreClient.Factory> metastoreClientFactory(
+            Identifier identifier, String branch) {
+        return wrapped.metastoreClientFactory(identifier, branch);
     }
 
     @Override
@@ -189,6 +190,31 @@ public class PrivilegedCatalog implements Catalog {
         wrapped.alterTable(identifier, changes, ignoreIfNotExists);
     }
 
+    /**
+     * Modify an existing table from {@link SchemaChange}s.
+     *
+     * <p>NOTE: System tables can not be altered.
+     *
+     * @param identifier path of the table to be modified
+     * @param changes the schema changes
+     * @param ignoreIfNotExists flag to specify behavior when the table does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @param branch specify branch
+     * @throws TableNotExistException if the table does not exist
+     * @throws ColumnAlreadyExistException
+     * @throws ColumnNotExistException
+     */
+    @Override
+    public void alterTable(
+            Identifier identifier,
+            List<SchemaChange> changes,
+            boolean ignoreIfNotExists,
+            String branch)
+            throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException {
+        privilegeManager.getPrivilegeChecker().assertCanAlterTable(identifier);
+        wrapped.alterTable(identifier, changes, ignoreIfNotExists, branch);
+    }
+
     @Override
     public Table getTable(Identifier identifier) throws TableNotExistException {
         Table table = wrapped.getTable(identifier);
@@ -200,11 +226,32 @@ public class PrivilegedCatalog implements Catalog {
         }
     }
 
+    /**
+     * Return a {@link Table} identified by the given {@link Identifier}.
+     *
+     * <p>System tables can be got by '$' splitter.
+     *
+     * @param identifier Path of the table
+     * @param branch
+     * @return The requested table
+     * @throws TableNotExistException if the target does not exist
+     */
     @Override
-    public void dropPartition(Identifier identifier, Map<String, String> partitions)
+    public Table getTable(Identifier identifier, String branch) throws TableNotExistException {
+        Table table = wrapped.getTable(identifier, branch);
+        if (table instanceof FileStoreTable) {
+            return new PrivilegedFileStoreTable(
+                    (FileStoreTable) table, privilegeManager.getPrivilegeChecker(), identifier);
+        } else {
+            return table;
+        }
+    }
+
+    @Override
+    public void dropPartition(Identifier identifier, Map<String, String> partitions, String branch)
             throws TableNotExistException, PartitionNotExistException {
         privilegeManager.getPrivilegeChecker().assertCanInsert(identifier);
-        wrapped.dropPartition(identifier, partitions);
+        wrapped.dropPartition(identifier, partitions, branch);
     }
 
     @Override

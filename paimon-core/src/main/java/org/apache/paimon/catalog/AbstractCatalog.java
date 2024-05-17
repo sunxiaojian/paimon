@@ -38,6 +38,7 @@ import org.apache.paimon.table.FileStoreTableFactory;
 import org.apache.paimon.table.Table;
 import org.apache.paimon.table.sink.BatchWriteBuilder;
 import org.apache.paimon.table.system.SystemTableLoader;
+import org.apache.paimon.utils.BranchManager;
 import org.apache.paimon.utils.StringUtils;
 
 import javax.annotation.Nullable;
@@ -166,9 +167,10 @@ public abstract class AbstractCatalog implements Catalog {
     protected abstract Map<String, String> loadDatabasePropertiesImpl(String name);
 
     @Override
-    public void dropPartition(Identifier identifier, Map<String, String> partitionSpec)
+    public void dropPartition(
+            Identifier identifier, Map<String, String> partitionSpec, String branch)
             throws TableNotExistException {
-        Table table = getTable(identifier);
+        Table table = getTable(identifier, branch);
         FileStoreTable fileStoreTable = (FileStoreTable) table;
         FileStoreCommit commit = fileStoreTable.store().newCommit(UUID.randomUUID().toString());
         commit.dropPartitions(
@@ -280,22 +282,31 @@ public abstract class AbstractCatalog implements Catalog {
     public void alterTable(
             Identifier identifier, List<SchemaChange> changes, boolean ignoreIfNotExists)
             throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException {
+        alterTableImpl(identifier, changes, BranchManager.DEFAULT_MAIN_BRANCH);
+    }
+
+    protected abstract void alterTableImpl(
+            Identifier identifier, List<SchemaChange> changes, String branch)
+            throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException;
+
+    @Override
+    public void alterTable(
+            Identifier identifier,
+            List<SchemaChange> changes,
+            boolean ignoreIfNotExists,
+            String branch)
+            throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException {
         checkNotSystemTable(identifier, "alterTable");
         validateIdentifierNameCaseInsensitive(identifier);
         validateFieldNameCaseInsensitiveInSchemaChange(changes);
-
         if (!tableExists(identifier)) {
             if (ignoreIfNotExists) {
                 return;
             }
             throw new TableNotExistException(identifier);
         }
-
-        alterTableImpl(identifier, changes);
+        alterTableImpl(identifier, changes, branch);
     }
-
-    protected abstract void alterTableImpl(Identifier identifier, List<SchemaChange> changes)
-            throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException;
 
     @Nullable
     private LineageMetaFactory findAndCreateLineageMeta(Options options, ClassLoader classLoader) {
@@ -308,7 +319,7 @@ public abstract class AbstractCatalog implements Catalog {
     }
 
     @Override
-    public Table getTable(Identifier identifier) throws TableNotExistException {
+    public Table getTable(Identifier identifier, String branch) throws TableNotExistException {
         if (isSystemDatabase(identifier.getDatabaseName())) {
             String tableName = identifier.getObjectName();
             Table table =
@@ -327,20 +338,21 @@ public abstract class AbstractCatalog implements Catalog {
             String tableName = splits[0];
             String type = splits[1];
             FileStoreTable originTable =
-                    getDataTable(new Identifier(identifier.getDatabaseName(), tableName));
+                    getDataTable(new Identifier(identifier.getDatabaseName(), tableName), branch);
             Table table = SystemTableLoader.load(type, fileIO, originTable);
             if (table == null) {
                 throw new TableNotExistException(identifier);
             }
             return table;
         } else {
-            Table table = getDataTable(identifier);
+            Table table = getDataTable(identifier, branch);
             return table;
         }
     }
 
-    private FileStoreTable getDataTable(Identifier identifier) throws TableNotExistException {
-        TableSchema tableSchema = getDataTableSchema(identifier);
+    private FileStoreTable getDataTable(Identifier identifier, String branch)
+            throws TableNotExistException {
+        TableSchema tableSchema = getDataTableSchema(identifier, branch);
         return FileStoreTableFactory.create(
                 fileIO,
                 getDataTableLocation(identifier),
@@ -348,7 +360,7 @@ public abstract class AbstractCatalog implements Catalog {
                 new CatalogEnvironment(
                         Lock.factory(
                                 lockFactory().orElse(null), lockContext().orElse(null), identifier),
-                        metastoreClientFactory(identifier).orElse(null),
+                        metastoreClientFactory(identifier, branch).orElse(null),
                         lineageMetaFactory));
     }
 
@@ -379,7 +391,7 @@ public abstract class AbstractCatalog implements Catalog {
         }
     }
 
-    protected abstract TableSchema getDataTableSchema(Identifier identifier)
+    protected abstract TableSchema getDataTableSchema(Identifier identifier, String branch)
             throws TableNotExistException;
 
     @VisibleForTesting

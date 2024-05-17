@@ -32,6 +32,7 @@ import org.apache.paimon.schema.Schema;
 import org.apache.paimon.schema.SchemaChange;
 import org.apache.paimon.schema.SchemaManager;
 import org.apache.paimon.schema.TableSchema;
+import org.apache.paimon.utils.BranchManager;
 import org.apache.paimon.utils.Preconditions;
 
 import org.apache.paimon.shade.guava30.com.google.common.collect.ImmutableMap;
@@ -248,7 +249,7 @@ public class JdbcCatalog extends AbstractCatalog {
     protected void createTableImpl(Identifier identifier, Schema schema) {
         try {
             // create table file
-            getSchemaManager(identifier).createTable(schema);
+            schemaManager(identifier).createTable(schema);
             // Update schema metadata
             Path path = getDataTableLocation(identifier);
             int insertRecord =
@@ -308,22 +309,23 @@ public class JdbcCatalog extends AbstractCatalog {
     }
 
     @Override
-    protected void alterTableImpl(Identifier identifier, List<SchemaChange> changes)
+    protected void alterTableImpl(Identifier identifier, List<SchemaChange> changes, String branch)
             throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException {
         if (!tableExists(identifier)) {
             throw new RuntimeException("Table is not exists " + identifier.getFullName());
         }
-        SchemaManager schemaManager = getSchemaManager(identifier);
+        SchemaManager schemaManager = schemaManager(identifier, branch);
         schemaManager.commitChanges(changes);
     }
 
     @Override
-    protected TableSchema getDataTableSchema(Identifier identifier) throws TableNotExistException {
+    protected TableSchema getDataTableSchema(Identifier identifier, String branch)
+            throws TableNotExistException {
         if (!tableExists(identifier)) {
             throw new TableNotExistException(identifier);
         }
         Path tableLocation = getDataTableLocation(identifier);
-        return new SchemaManager(fileIO, tableLocation)
+        return new SchemaManager(fileIO, tableLocation, branch)
                 .latest()
                 .orElseThrow(
                         () -> new RuntimeException("There is no paimon table in " + tableLocation));
@@ -373,8 +375,12 @@ public class JdbcCatalog extends AbstractCatalog {
         }
     }
 
-    private SchemaManager getSchemaManager(Identifier identifier) {
-        return new SchemaManager(fileIO, getDataTableLocation(identifier))
+    private SchemaManager schemaManager(Identifier identifier) {
+        return schemaManager(identifier, BranchManager.DEFAULT_MAIN_BRANCH);
+    }
+
+    private SchemaManager schemaManager(Identifier identifier, String branch) {
+        return new SchemaManager(fileIO, getDataTableLocation(identifier), branch)
                 .withLock(lock(identifier));
     }
 

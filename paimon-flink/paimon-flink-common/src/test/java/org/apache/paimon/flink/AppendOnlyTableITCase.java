@@ -269,6 +269,9 @@ public class AppendOnlyTableITCase extends CatalogITCaseBase {
         paimonTable("T").createTag("tag1", 1);
         // create branch
         paimonTable("T").createBranch("branch1", "tag1");
+
+        sql("ALTER TABLE T SET ('branch'='branch1')");
+        sql("ALTER TABLE T ADD (c1 INT, c2 STRING)");
         // insert data to branch
         batchSql("INSERT INTO T/*+ OPTIONS('branch' = 'branch1') */ VALUES (2)");
         List<Row> rows = batchSql("select * from T /*+ OPTIONS('branch' = 'branch1') */");

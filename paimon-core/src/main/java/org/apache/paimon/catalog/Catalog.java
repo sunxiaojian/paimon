@@ -24,6 +24,7 @@ import org.apache.paimon.metastore.MetastoreClient;
 import org.apache.paimon.schema.Schema;
 import org.apache.paimon.schema.SchemaChange;
 import org.apache.paimon.table.Table;
+import org.apache.paimon.utils.BranchManager;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -66,7 +67,8 @@ public interface Catalog extends AutoCloseable {
     }
 
     /** Get metastore client factory for the table specified by {@code identifier}. */
-    default Optional<MetastoreClient.Factory> metastoreClientFactory(Identifier identifier) {
+    default Optional<MetastoreClient.Factory> metastoreClientFactory(
+            Identifier identifier, String branch) {
         return Optional.empty();
     }
 
@@ -140,7 +142,20 @@ public interface Catalog extends AutoCloseable {
      * @return The requested table
      * @throws TableNotExistException if the target does not exist
      */
-    Table getTable(Identifier identifier) throws TableNotExistException;
+    default Table getTable(Identifier identifier) throws TableNotExistException {
+        return getTable(identifier, BranchManager.DEFAULT_MAIN_BRANCH);
+    }
+
+    /**
+     * Return a {@link Table} identified by the given {@link Identifier}.
+     *
+     * <p>System tables can be got by '$' splitter.
+     *
+     * @param identifier Path of the table
+     * @return The requested table
+     * @throws TableNotExistException if the target does not exist
+     */
+    Table getTable(Identifier identifier, String branch) throws TableNotExistException;
 
     /**
      * Get names of all tables under this database. An empty list is returned if none exists.
@@ -227,6 +242,27 @@ public interface Catalog extends AutoCloseable {
             throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException;
 
     /**
+     * Modify an existing table from {@link SchemaChange}s.
+     *
+     * <p>NOTE: System tables can not be altered.
+     *
+     * @param identifier path of the table to be modified
+     * @param changes the schema changes
+     * @param ignoreIfNotExists flag to specify behavior when the table does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @param branch specify branch
+     * @throws TableNotExistException if the table does not exist
+     * @throws ColumnAlreadyExistException
+     * @throws ColumnNotExistException
+     */
+    void alterTable(
+            Identifier identifier,
+            List<SchemaChange> changes,
+            boolean ignoreIfNotExists,
+            String branch)
+            throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException;
+
+    /**
      * Drop the partition of the specify table.
      *
      * @param identifier path of the table to drop partition
@@ -234,7 +270,7 @@ public interface Catalog extends AutoCloseable {
      * @throws TableNotExistException if the table does not exist
      * @throws PartitionNotExistException if the partition does not exist
      */
-    void dropPartition(Identifier identifier, Map<String, String> partitions)
+    void dropPartition(Identifier identifier, Map<String, String> partitions, String branch)
             throws TableNotExistException, PartitionNotExistException;
 
     /**
@@ -251,6 +287,26 @@ public interface Catalog extends AutoCloseable {
     default void alterTable(Identifier identifier, SchemaChange change, boolean ignoreIfNotExists)
             throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException {
         alterTable(identifier, Collections.singletonList(change), ignoreIfNotExists);
+    }
+
+    /**
+     * Modify an existing table from {@link SchemaChange}.
+     *
+     * <p>NOTE: System tables can not be altered.
+     *
+     * @param identifier path of the table to be modified
+     * @param changes the schema change
+     * @param ignoreIfNotExists flag to specify behavior when the table does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @param branch specify branch
+     * @throws TableNotExistException if the table does not exist
+     * @throws ColumnAlreadyExistException
+     * @throws ColumnNotExistException
+     */
+    default void alterTable(
+            Identifier identifier, SchemaChange change, boolean ignoreIfNotExists, String branch)
+            throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException {
+        alterTable(identifier, Collections.singletonList(change), ignoreIfNotExists, branch);
     }
 
     /** Return a boolean that indicates whether this catalog is case-sensitive. */

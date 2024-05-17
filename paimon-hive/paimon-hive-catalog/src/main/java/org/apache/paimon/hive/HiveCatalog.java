@@ -44,6 +44,7 @@ import org.apache.paimon.schema.TableSchema;
 import org.apache.paimon.table.TableType;
 import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataTypes;
+import org.apache.paimon.utils.BranchManager;
 
 import org.apache.flink.table.hive.LegacyHiveClasses;
 import org.apache.hadoop.conf.Configuration;
@@ -165,11 +166,15 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
-    public Optional<MetastoreClient.Factory> metastoreClientFactory(Identifier identifier) {
+    public Optional<MetastoreClient.Factory> metastoreClientFactory(
+            Identifier identifier, String branch) {
         try {
             return Optional.of(
                     new HiveMetastoreClient.Factory(
-                            identifier, getDataTableSchema(identifier), hiveConf, clientClassName));
+                            identifier,
+                            getDataTableSchema(identifier, branch),
+                            hiveConf,
+                            clientClassName));
         } catch (TableNotExistException e) {
             throw new RuntimeException(
                     "Table " + identifier + " does not exist. This is unexpected.", e);
@@ -270,9 +275,10 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
-    public void dropPartition(Identifier identifier, Map<String, String> partitionSpec)
+    public void dropPartition(
+            Identifier identifier, Map<String, String> partitionSpec, String branch)
             throws TableNotExistException {
-        TableSchema tableSchema = getDataTableSchema(identifier);
+        TableSchema tableSchema = getDataTableSchema(identifier, branch);
         if (!tableSchema.partitionKeys().isEmpty()
                 && new CoreOptions(tableSchema.options()).partitionedTableInMetastore()) {
             try {
@@ -285,7 +291,7 @@ public class HiveCatalog extends AbstractCatalog {
                 throw new RuntimeException(e);
             }
         }
-        super.dropPartition(identifier, partitionSpec);
+        super.dropPartition(identifier, partitionSpec, branch);
     }
 
     private Map<String, String> convertToProperties(Database database) {
@@ -354,7 +360,8 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
-    public TableSchema getDataTableSchema(Identifier identifier) throws TableNotExistException {
+    public TableSchema getDataTableSchema(Identifier identifier, String branch)
+            throws TableNotExistException {
         if (!tableExists(identifier)) {
             throw new TableNotExistException(identifier);
         }
@@ -471,10 +478,10 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
-    protected void alterTableImpl(Identifier identifier, List<SchemaChange> changes)
+    protected void alterTableImpl(Identifier identifier, List<SchemaChange> changes, String branch)
             throws TableNotExistException, ColumnAlreadyExistException, ColumnNotExistException {
 
-        final SchemaManager schemaManager = schemaManager(identifier);
+        final SchemaManager schemaManager = schemaManager(identifier, branch);
         // first commit changes to underlying files
         TableSchema schema = schemaManager.commitChanges(changes);
 
@@ -701,7 +708,11 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     private SchemaManager schemaManager(Identifier identifier) {
-        return new SchemaManager(fileIO, getDataTableLocation(identifier))
+        return schemaManager(identifier, BranchManager.DEFAULT_MAIN_BRANCH);
+    }
+
+    private SchemaManager schemaManager(Identifier identifier, String branch) {
+        return new SchemaManager(fileIO, getDataTableLocation(identifier), branch)
                 .withLock(lock(identifier));
     }
 
