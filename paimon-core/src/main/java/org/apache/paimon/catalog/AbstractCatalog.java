@@ -67,7 +67,6 @@ public abstract class AbstractCatalog implements Catalog {
     protected final FileIO fileIO;
     protected final Map<String, String> tableDefaultOptions;
     protected final Options catalogOptions;
-    protected final String branchName;
 
     @Nullable protected final LineageMetaFactory lineageMetaFactory;
 
@@ -76,7 +75,6 @@ public abstract class AbstractCatalog implements Catalog {
         this.lineageMetaFactory = null;
         this.tableDefaultOptions = new HashMap<>();
         this.catalogOptions = new Options();
-        branchName = BranchManager.DEFAULT_MAIN_BRANCH;
     }
 
     protected AbstractCatalog(FileIO fileIO, Options options) {
@@ -86,7 +84,6 @@ public abstract class AbstractCatalog implements Catalog {
         this.tableDefaultOptions =
                 convertToPropertiesPrefixKey(options.toMap(), TABLE_DEFAULT_OPTION_PREFIX);
         this.catalogOptions = options;
-        this.branchName = options.get(CoreOptions.BRANCH);
     }
 
     @Override
@@ -340,12 +337,6 @@ public abstract class AbstractCatalog implements Catalog {
             return table;
         } else {
             Table table = getDataTable(identifier);
-            // Override branch option
-            if (!branchName.equals(BranchManager.DEFAULT_MAIN_BRANCH)) {
-                Map<String, String> dynamicOptions = new HashMap<>(table.options());
-                dynamicOptions.put(CoreOptions.BRANCH.key(), branchName);
-                table = table.copy(dynamicOptions);
-            }
             return table;
         }
     }
