@@ -76,6 +76,10 @@ public class BranchManager {
         return new Path(tablePath + "/branch");
     }
 
+    public static boolean isMainBranch(String branch) {
+        return branch.equals(DEFAULT_MAIN_BRANCH);
+    }
+
     /** Return the path string of a branch. */
     public static String getBranchPath(Path tablePath, String branchName) {
         return tablePath.toString() + "/branch/" + BRANCH_PREFIX + branchName;
@@ -89,7 +93,7 @@ public class BranchManager {
     /** Create empty branch. */
     public void createBranch(String branchName) {
         checkArgument(
-                !branchName.equals(DEFAULT_MAIN_BRANCH),
+                !isMainBranch(branchName),
                 String.format(
                         "Branch name '%s' is the default branch and cannot be used.",
                         DEFAULT_MAIN_BRANCH));
@@ -99,11 +103,12 @@ public class BranchManager {
                 !branchName.chars().allMatch(Character::isDigit),
                 "Branch name cannot be pure numeric string but is '%s'.",
                 branchName);
+
         try {
             TableSchema latestSchema = schemaManager.latest().get();
             fileIO.copyFileUtf8(
                     schemaManager.toSchemaPath(latestSchema.id()),
-                    schemaManager.branchSchemaPath(branchName, latestSchema.id()));
+                    schemaManager.copyWithBranch(branchName).toSchemaPath(latestSchema.id()));
         } catch (IOException e) {
             throw new RuntimeException(
                     String.format(
@@ -115,7 +120,7 @@ public class BranchManager {
 
     public void createBranch(String branchName, long snapshotId) {
         checkArgument(
-                !branchName.equals(DEFAULT_MAIN_BRANCH),
+                !isMainBranch(branchName),
                 String.format(
                         "Branch name '%s' is the default branch and cannot be used.",
                         DEFAULT_MAIN_BRANCH));
@@ -132,10 +137,10 @@ public class BranchManager {
             // Copy the corresponding snapshot and schema files into the branch directory
             fileIO.copyFileUtf8(
                     snapshotManager.snapshotPath(snapshotId),
-                    snapshotManager.branchSnapshotPath(branchName, snapshot.id()));
+                    snapshotManager.copyWithBranch(branchName).snapshotPath(snapshot.id()));
             fileIO.copyFileUtf8(
                     schemaManager.toSchemaPath(snapshot.schemaId()),
-                    schemaManager.branchSchemaPath(branchName, snapshot.schemaId()));
+                    schemaManager.copyWithBranch(branchName).toSchemaPath(snapshot.schemaId()));
         } catch (IOException e) {
             throw new RuntimeException(
                     String.format(
@@ -147,7 +152,7 @@ public class BranchManager {
 
     public void createBranch(String branchName, String tagName) {
         checkArgument(
-                !branchName.equals(DEFAULT_MAIN_BRANCH),
+                !isMainBranch(branchName),
                 String.format(
                         "Branch name '%s' is the default branch and cannot be used.",
                         DEFAULT_MAIN_BRANCH));
@@ -164,13 +169,14 @@ public class BranchManager {
         try {
             // Copy the corresponding tag, snapshot and schema files into the branch directory
             fileIO.copyFileUtf8(
-                    tagManager.tagPath(tagName), tagManager.branchTagPath(branchName, tagName));
+                    tagManager.tagPath(tagName),
+                    tagManager.copyWithBranch(branchName).tagPath(tagName));
             fileIO.copyFileUtf8(
                     snapshotManager.snapshotPath(snapshot.id()),
-                    snapshotManager.branchSnapshotPath(branchName, snapshot.id()));
+                    snapshotManager.copyWithBranch(branchName).snapshotPath(snapshot.id()));
             fileIO.copyFileUtf8(
                     schemaManager.toSchemaPath(snapshot.schemaId()),
-                    schemaManager.branchSchemaPath(branchName, snapshot.schemaId()));
+                    schemaManager.copyWithBranch(branchName).toSchemaPath(snapshot.schemaId()));
         } catch (IOException e) {
             throw new RuntimeException(
                     String.format(
@@ -301,7 +307,8 @@ public class BranchManager {
                     new PriorityQueue<>(Comparator.comparingLong(TableBranch::getCreateTime));
             for (Pair<Path, Long> path : paths) {
                 String branchName = path.getLeft().getName().substring(BRANCH_PREFIX.length());
-                Optional<TableSchema> tableSchema = schemaManager.latest(branchName);
+                Optional<TableSchema> tableSchema =
+                        schemaManager.copyWithBranch(branchName).latest();
                 if (!tableSchema.isPresent()) {
                     // Support empty branch.
                     pq.add(new TableBranch(branchName, path.getValue()));
