@@ -204,6 +204,17 @@ public class PrivilegedFileStoreTable implements FileStoreTable {
         wrapped.deleteBranch(branchName);
     }
 
+    /**
+     * Merge a branch to main branch.
+     *
+     * @param branchName
+     */
+    @Override
+    public void mergeBranch(String branchName) {
+        privilegeChecker.assertCanInsert(identifier);
+        wrapped.mergeBranch(branchName);
+    }
+
     @Override
     public void replaceBranch(String fromBranch) {
         privilegeChecker.assertCanInsert(identifier);

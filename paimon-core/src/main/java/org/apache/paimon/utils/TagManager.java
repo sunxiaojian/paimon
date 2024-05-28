@@ -80,7 +80,7 @@ public class TagManager {
     public Path tagDirectory() {
         return new Path(getBranchPath(fileIO, tablePath, branch) + "/tag");
     }
-    
+
     /** Return the path of a tag. */
     public Path tagPath(String tagName) {
         return new Path(getBranchPath(fileIO, tablePath, branch) + "/tag/" + TAG_PREFIX + tagName);

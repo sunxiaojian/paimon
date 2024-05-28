@@ -1113,14 +1113,6 @@ public abstract class FileStoreTableTestBase {
 
         generateBranch(table);
 
-        // Verify branch1 and the main branch have the same data
-        assertThat(
-                        getResult(
-                                table.newRead(),
-                                toSplits(table.newSnapshotReader("branch1").read().dataSplits()),
-                                BATCH_ROW_TO_STRING))
-                .containsExactlyInAnyOrder("0|0|0|binary|varbinary|mapKey:mapVal|multiset");
-
         // Test for unsupported branch name
         assertThatThrownBy(() -> table.mergeBranch("test-branch"))
                 .satisfies(
@@ -1134,9 +1126,10 @@ public abstract class FileStoreTableTestBase {
                                 IllegalArgumentException.class,
                                 "Branch name 'main' do not use in merge branch."));
 
+        FileStoreTable tableBranch = createFileStoreTable("branch1");
         // Write data to branch1
-        try (StreamTableWrite write = table.newWrite(commitUser);
-                StreamTableCommit commit = table.newCommit(commitUser, "branch1")) {
+        try (StreamTableWrite write = tableBranch.newWrite(commitUser);
+                StreamTableCommit commit = tableBranch.newCommit(commitUser)) {
             write.write(rowData(2, 20, 200L));
             commit.commit(1, write.prepareCommit(false, 2));
         }
@@ -1144,8 +1137,8 @@ public abstract class FileStoreTableTestBase {
         // Validate data in branch1
         assertThat(
                         getResult(
-                                table.newRead(),
-                                toSplits(table.newSnapshotReader("branch1").read().dataSplits()),
+                                tableBranch.newRead(),
+                                toSplits(tableBranch.newSnapshotReader().read().dataSplits()),
                                 BATCH_ROW_TO_STRING))
                 .containsExactlyInAnyOrder(
                         "0|0|0|binary|varbinary|mapKey:mapVal|multiset",
@@ -1176,7 +1169,8 @@ public abstract class FileStoreTableTestBase {
         SnapshotManager snapshotManager = new SnapshotManager(new TraceableFileIO(), tablePath);
         Snapshot branchSnapshot =
                 Snapshot.fromPath(
-                        new TraceableFileIO(), snapshotManager.branchSnapshotPath("branch1", 2));
+                        new TraceableFileIO(),
+                        snapshotManager.copyWithBranch("branch1").snapshotPath(2));
         Snapshot snapshot =
                 Snapshot.fromPath(new TraceableFileIO(), snapshotManager.snapshotPath(2));
         assertThat(branchSnapshot.equals(snapshot)).isTrue();
@@ -1185,13 +1179,14 @@ public abstract class FileStoreTableTestBase {
         SchemaManager schemaManager = new SchemaManager(new TraceableFileIO(), tablePath);
         TableSchema branchSchema =
                 SchemaManager.fromPath(
-                        new TraceableFileIO(), schemaManager.branchSchemaPath("branch1", 0));
+                        new TraceableFileIO(),
+                        schemaManager.copyWithBranch("branch1").toSchemaPath(0));
         TableSchema schema0 = schemaManager.schema(0);
         assertThat(branchSchema.equals(schema0)).isTrue();
 
         // Write two rows data to branch1 again
-        try (StreamTableWrite write = table.newWrite(commitUser);
-                StreamTableCommit commit = table.newCommit(commitUser, "branch1")) {
+        try (StreamTableWrite write = tableBranch.newWrite(commitUser);
+                StreamTableCommit commit = tableBranch.newCommit(commitUser)) {
             write.write(rowData(3, 30, 300L));
             write.write(rowData(4, 40, 400L));
             commit.commit(2, write.prepareCommit(false, 3));
@@ -1201,7 +1196,7 @@ public abstract class FileStoreTableTestBase {
         assertThat(
                         getResult(
                                 table.newRead(),
-                                toSplits(table.newSnapshotReader("branch1").read().dataSplits()),
+                                toSplits(tableBranch.newSnapshotReader().read().dataSplits()),
                                 BATCH_ROW_TO_STRING))
                 .containsExactlyInAnyOrder(
                         "0|0|0|binary|varbinary|mapKey:mapVal|multiset",
