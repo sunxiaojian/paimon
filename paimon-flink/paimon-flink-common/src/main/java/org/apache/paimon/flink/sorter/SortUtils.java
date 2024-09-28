@@ -113,7 +113,7 @@ public class SortUtils {
         final InternalTypeInfo<InternalRow> internalRowType =
                 InternalTypeInfo.fromRowType(longRowType);
 
-        // generate the KEY as the key of Pair.
+        // generate the KEY as the key of Pair.（返回的Key是生成的zIndex的key，通过位交叉获得的，类iceberg的处理）
         DataStream<Tuple2<KEY, RowData>> inputWithKey =
                 inputStream
                         .map(
