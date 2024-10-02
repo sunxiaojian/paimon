@@ -115,7 +115,8 @@ public class MergeTreeCompactManager extends CompactFutureManager {
     @Override
     public void triggerCompaction(boolean fullCompaction) {
         Optional<CompactUnit> optionalUnit;
-        // L0 每一个文件对应一个sorted run, L0往下每一层有一个sorted run. 每一个sorted run 对应一个或多个文件,文件写到一定大小就会rolling out. 所以同一层的sorted run看做是一个全局按照pk排序的文件.
+        // L0 每一个文件对应一个sorted run, L0往下每一层有一个sorted run. 每一个sorted run 对应一个或多个文件,文件写到一定大小就会rolling
+        // out. 所以同一层的sorted run看做是一个全局按照pk排序的文件.
         List<LevelSortedRun> runs = levels.levelSortedRuns();
         if (fullCompaction) {
             Preconditions.checkState(

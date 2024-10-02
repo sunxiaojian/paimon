@@ -107,11 +107,12 @@ public class MergeSorter {
             @Nullable FieldsComparator userDefinedSeqComparator,
             MergeFunctionWrapper<T> mergeFunction)
             throws IOException {
+        // 溢出排序
         if (ioManager != null && lazyReaders.size() > spillThreshold) {
             return spillMergeSort(
                     lazyReaders, keyComparator, userDefinedSeqComparator, mergeFunction);
         }
-
+        // 纯内存排序
         return mergeSortNoSpill(
                 lazyReaders, keyComparator, userDefinedSeqComparator, mergeFunction);
     }

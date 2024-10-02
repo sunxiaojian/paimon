@@ -51,8 +51,10 @@ public class MergeTreeReaders {
             throws IOException {
         List<ReaderSupplier<T>> readers = new ArrayList<>();
         for (List<SortedRun> section : sections) {
+            // 每一个 sort 对应一个 SortMergeReader
             readers.add(
                     () ->
+                            // return sort reader(min-heap reader or loser-sort reader)
                             readerForSection(
                                     section,
                                     readerFactory,
@@ -83,18 +85,26 @@ public class MergeTreeReaders {
 
                         @Override
                         public RecordReader<KeyValue> get() throws IOException {
+                            /**
+                             * 1. 遍历 SortRun 中的文件，创建 FileReader 2.
+                             * 返回ConcatReader，简单的将所有的文件读取作为一个整体进行返回
+                             */
                             return readerForRun(run, readerFactory);
                         }
                     });
         }
+        // 对section 中需要合并的每个SortRun中的文件进行合并， 生成 MergeSort 排序， 会存在spill 和 no spill两种（随后进行分析）
         return mergeSorter.mergeSort(
                 readers, userKeyComparator, userDefinedSeqComparator, mergeFunctionWrapper);
     }
 
+    // 为 SortRun 中的每个文件生成一个reader
     private static RecordReader<KeyValue> readerForRun(
             SortedRun run, FileReaderFactory<KeyValue> readerFactory) throws IOException {
         List<ReaderSupplier<KeyValue>> readers = new ArrayList<>();
+        // 对每个文件生成一个 file reader
         for (DataFileMeta file : run.files()) {
+            // 通过 KeyValueFileReaderFactory  创建reader
             readers.add(() -> readerFactory.createRecordReader(file));
         }
         return ConcatRecordReader.create(readers);

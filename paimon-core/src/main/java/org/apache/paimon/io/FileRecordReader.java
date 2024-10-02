@@ -79,6 +79,7 @@ public class FileRecordReader implements RecordReader<InternalRow> {
             @Nullable PartitionInfo partitionInfo)
             throws IOException {
         try {
+            // Orc、Parquet or Avro file reader.
             this.reader = readerFactory.createReader(context);
         } catch (Exception e) {
             FileUtils.checkExists(context.fileIO(), context.filePath());

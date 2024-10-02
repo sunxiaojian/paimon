@@ -35,6 +35,8 @@ import java.util.Queue;
  * input list is already sorted by key and sequence number, and the key intervals do not overlap
  * each other.
  */
+
+// 拼接的reader
 public class ConcatRecordReader<T> implements RecordReader<T> {
 
     private final Queue<ReaderSupplier<T>> queue;
@@ -45,6 +47,7 @@ public class ConcatRecordReader<T> implements RecordReader<T> {
         readerFactories.forEach(
                 supplier ->
                         Preconditions.checkNotNull(supplier, "Reader factory must not be null."));
+        // 将 reader 添加队列中， 最终会依次访问
         this.queue = new LinkedList<>(readerFactories);
     }
 
@@ -63,6 +66,7 @@ public class ConcatRecordReader<T> implements RecordReader<T> {
     public RecordIterator<T> readBatch() throws IOException {
         while (true) {
             if (current != null) {
+                // 依次遍历 SortMergeReader
                 RecordIterator<T> iterator = current.readBatch();
                 if (iterator != null) {
                     return iterator;

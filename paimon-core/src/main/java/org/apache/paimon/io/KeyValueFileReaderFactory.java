@@ -102,10 +102,13 @@ public class KeyValueFileReaderFactory implements FileReaderFactory<KeyValue> {
 
     public RecordReader<KeyValue> createRecordReader(
             long schemaId, String fileName, long fileSize, int level) throws IOException {
+
+        // asyncThreshold 为异步读取文件的阈值，默认是10MB
         if (fileSize >= asyncThreshold && fileName.endsWith(".orc")) {
             return new AsyncRecordReader<>(
                     () -> createRecordReader(schemaId, fileName, level, false, 2, fileSize));
         }
+        // return KeyValueDataFileRecordReader（FileRecordReader(orc、parquet、avro)）
         return createRecordReader(schemaId, fileName, level, true, null, fileSize);
     }
 
@@ -135,6 +138,7 @@ public class KeyValueFileReaderFactory implements FileReaderFactory<KeyValue> {
         Path filePath = pathFactory.toPath(fileName);
 
         RecordReader<InternalRow> fileRecordReader =
+                // Orc、Parquet or Avro file reader.
                 new FileRecordReader(
                         bulkFormatMapping.getReaderFactory(),
                         orcPoolSize == null

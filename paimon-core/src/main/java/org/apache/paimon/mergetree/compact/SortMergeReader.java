@@ -38,6 +38,7 @@ import java.util.List;
  */
 public interface SortMergeReader<T> extends RecordReader<T> {
 
+    // 创建 sort merge reader
     static <T> SortMergeReader<T> createSortMergeReader(
             List<RecordReader<KeyValue>> readers,
             Comparator<InternalRow> userKeyComparator,

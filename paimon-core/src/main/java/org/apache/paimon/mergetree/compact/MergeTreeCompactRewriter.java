@@ -80,12 +80,14 @@ public class MergeTreeCompactRewriter extends AbstractCompactRewriter {
         RecordReader<KeyValue> reader = null;
         Exception collectedExceptions = null;
         try {
+            // ConcatRecordReader（合并 sections, 每个 section 都有一个List<SortedRun> 需要合并）
             reader =
                     readerForMergeTree(
                             sections, new ReducerMergeFunctionWrapper(mfFactory.create()));
             if (dropDelete) {
                 reader = new DropDeleteReader(reader);
             }
+            // 需要将这些数据遍历并写入文件中
             writer.write(new RecordReaderIterator<>(reader));
         } catch (Exception e) {
             collectedExceptions = e;

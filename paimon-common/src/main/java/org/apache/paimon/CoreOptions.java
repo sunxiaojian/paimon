@@ -2553,7 +2553,11 @@ public class CoreOptions implements Serializable {
 
     /** Specifies the sort engine for table with primary key. */
     public enum SortEngine implements DescribedEnum {
+        // 最小堆排序
         MIN_HEAP("min-heap", "Use min-heap for multiway sorting."),
+
+        // 使用loser-tree进行多向排序。与heapsort相比，loser树的比较更少，效率更高。
+        // https://developer.volcengine.com/articles/7236667079003209785
         LOSER_TREE(
                 "loser-tree",
                 "Use loser-tree for multiway sorting. Compared with heapsort, loser-tree has fewer comparisons and is more efficient.");

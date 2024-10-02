@@ -66,6 +66,8 @@ public class MergeTreeCompactTask extends CompactTask {
         this.rewriter = rewriter;
         this.outputLevel = unit.outputLevel();
         this.compactDfSupplier = compactDfSupplier;
+
+        // 将有范围交叉的进行分区后处理
         this.partitioned = new IntervalPartition(unit.files(), keyComparator).partition();
         this.dropDelete = dropDelete;
         this.maxLevel = maxLevel;
@@ -85,26 +87,34 @@ public class MergeTreeCompactTask extends CompactTask {
 
         // 检查相邻和顺序的文件并进行压缩，顺序去执行压缩
         for (List<SortedRun> section : partitioned) {
+            // 当前分割批次的数量> 1, 则直接加到后补名单中
             if (section.size() > 1) {
                 candidate.add(section);
             } else {
+
                 SortedRun run = section.get(0);
                 // No overlapping:
                 // We can just upgrade the large file and just change the level instead of
                 // rewriting it
                 // But for small files, we will try to compact it
+
+                // 小文件进行压缩，大的文件，直接升级大下个层级即可
                 for (DataFileMeta file : run.files()) {
                     if (file.fileSize() < minFileSize) {
                         // Smaller files are rewritten along with the previous files
+                        // 小文件需要先压缩
                         candidate.add(singletonList(SortedRun.fromSingle(file)));
                     } else {
                         // Large file appear, rewrite previous and upgrade it
+                        // 先 rewrite 小文件
                         rewrite(candidate, result);
+                        // 把大文件升级到下一层级
                         upgrade(file, result);
                     }
                 }
             }
         }
+        // 重写
         rewrite(candidate, result);
         result.setDeletionFile(compactDfSupplier.get());
         return result;
@@ -119,16 +129,19 @@ public class MergeTreeCompactTask extends CompactTask {
     }
 
     private void upgrade(DataFileMeta file, CompactResult toUpdate) throws Exception {
+        // 若当前文件的level与输出文件的level相等，则不进行任何操作
         if (file.level() == outputLevel) {
             return;
         }
 
         if (outputLevel != maxLevel || file.deleteRowCount().map(d -> d == 0).orElse(false)) {
+            // 如果outputLevel不是最大的level, 或者当前文件的删除的行是0， 则进行
             CompactResult upgradeResult = rewriter.upgrade(outputLevel, file);
             toUpdate.merge(upgradeResult);
             upgradeFilesNum++;
         } else {
             // files with delete records should not be upgraded directly to max level
+            // 有删除记录的文件不能直接升级到最高的level
             List<List<SortedRun>> candidate = new ArrayList<>();
             candidate.add(new ArrayList<>());
             candidate.get(0).add(SortedRun.fromSingle(file));

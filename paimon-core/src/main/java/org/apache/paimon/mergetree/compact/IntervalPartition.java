@@ -70,12 +70,17 @@ public class IntervalPartition {
     public List<List<SortedRun>> partition() {
         List<List<SortedRun>> result = new ArrayList<>();
         List<DataFileMeta> section = new ArrayList<>();
+
+        // 边界值
         BinaryRow bound = null;
 
+        // files 是通过策略选取出来的
+        // 然后对策略进行分区
         for (DataFileMeta meta : files) {
-            // 比较是不是有重叠
+            // 如果当前的文件的minkey 大于上个文件的maxkey, 则进行
             if (!section.isEmpty() && keyComparator.compare(meta.minKey(), bound) > 0) {
-                // larger than current right bound, conclude current section and create a new one   大于当前右边界，结束当前部分并创建一个新的部分
+                // larger than current right bound, conclude current section and create a new one
+                // 大于当前右边界，结束当前部分并创建一个拆分
                 result.add(partition(section));
                 section.clear();
                 bound = null;
@@ -112,11 +117,14 @@ public class IntervalPartition {
             // any file list whose max key < meta.minKey() is sufficient,
             // for convenience we pick the smallest
             List<DataFileMeta> top = queue.poll();
+
             if (keyComparator.compare(meta.minKey(), top.get(top.size() - 1).maxKey()) > 0) {
+                // 有交叉，需要合并
                 // append current file to an existing partition
                 top.add(meta);
             } else {
                 // create a new partition
+                // 数据没有交叉，生成一个新的
                 List<DataFileMeta> newRun = new ArrayList<>();
                 newRun.add(meta);
                 queue.add(newRun);

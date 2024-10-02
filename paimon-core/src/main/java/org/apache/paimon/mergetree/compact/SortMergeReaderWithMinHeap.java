@@ -87,7 +87,7 @@ public class SortMergeReaderWithMinHeap<T> implements SortMergeReader<T> {
                     // empty iterator, clean up and try next batch
                     iterator.releaseBatch();
                 } else {
-                    // found next kv
+                    // found next kv (插入指定的元素)
                     minHeap.offer(new Element(kv, iterator, reader));
                     break;
                 }
@@ -197,6 +197,7 @@ public class SortMergeReaderWithMinHeap<T> implements SortMergeReader<T> {
         }
 
         // IMPORTANT: Must not call this for elements still in priority queue!
+        // 对于仍在优先级队列中的元素，不得调用此命令
         private boolean update() throws IOException {
             KeyValue nextKv = iterator.next();
             if (nextKv == null) {
