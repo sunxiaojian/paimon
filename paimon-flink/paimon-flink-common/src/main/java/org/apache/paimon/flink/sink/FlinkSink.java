@@ -102,6 +102,7 @@ public abstract class FlinkSink<T> implements Serializable {
         if (coreOptions.writeOnly()) {
             waitCompaction = false;
         } else {
+            // 不需要等待全局压缩
             waitCompaction = coreOptions.prepareCommitWaitCompaction();
             int deltaCommits = -1;
             if (options.contains(FULL_COMPACTION_DELTA_COMMITS)) {
@@ -115,6 +116,8 @@ public abstract class FlinkSink<T> implements Serializable {
                                         / checkpointConfig.getCheckpointInterval());
             }
 
+            // 如何 change log 设置的是  full-compaction,全压缩
+            // deltaCommits, 当增量提交的数量达到一定程度后进行压缩
             if (changelogProducer == ChangelogProducer.FULL_COMPACTION || deltaCommits >= 0) {
                 int finalDeltaCommits = Math.max(deltaCommits, 1);
                 return (table, commitUser, state, ioManager, memoryPool, metricGroup) -> {
@@ -134,6 +137,7 @@ public abstract class FlinkSink<T> implements Serializable {
             }
         }
 
+        // 实现 deletion vector 和 change producer
         if (coreOptions.needLookup() && !coreOptions.prepareCommitWaitCompaction()) {
             return (table, commitUser, state, ioManager, memoryPool, metricGroup) -> {
                 assertNoSinkMaterializer.run();
@@ -149,7 +153,7 @@ public abstract class FlinkSink<T> implements Serializable {
                         metricGroup);
             };
         }
-
+        // 正常写入器
         return (table, commitUser, state, ioManager, memoryPool, metricGroup) -> {
             assertNoSinkMaterializer.run();
             return new StoreSinkWriteImpl(

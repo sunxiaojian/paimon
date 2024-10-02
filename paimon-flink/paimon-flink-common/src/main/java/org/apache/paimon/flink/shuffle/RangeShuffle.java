@@ -118,19 +118,24 @@ public class RangeShuffle {
                 new OneInputTransformation<>(
                         keyInput,
                         "LOCAL SAMPLE",
-                        new LocalSampleOperator<>(localSampleSize),// 对一批数据进行排序 ，取最大权重(随机生成的)的前localSampleSize的数据
+                        new LocalSampleOperator<>(
+                                localSampleSize), // 对一批数据进行排序 ，取最大权重(随机生成的)的前localSampleSize的数据
                         new TupleTypeInfo<>(
                                 BasicTypeInfo.DOUBLE_TYPE_INFO,
                                 keyTypeInformation,
                                 BasicTypeInfo.INT_TYPE_INFO),
                         keyInput.getParallelism());
 
-        // 2. Collect all the samples and gather them into a sorted key range. 将所有的分区样本进行汇总，生成一个总的样本数据
+        // 2. Collect all the samples and gather them into a sorted key range.
+        // 将所有的分区样本进行汇总，生成一个总的样本数据
         OneInputTransformation<Tuple3<Double, T, Integer>, List<T>> sampleAndHistogram =
                 new OneInputTransformation<>(
                         localSample,
                         "GLOBAL SAMPLE",
-                        new GlobalSampleOperator<>(globalSampleSize, keyComparator, rangeNum), // rangeNum=sinkParallelism * 10
+                        new GlobalSampleOperator<>(
+                                globalSampleSize,
+                                keyComparator,
+                                rangeNum), // rangeNum=sinkParallelism * 10
                         new ListTypeInfo<>(keyTypeInformation),
                         1);
 
@@ -566,8 +571,9 @@ public class RangeShuffle {
 
     /**
      * （找到对应的分桶边界值）
+     *
      * @param sampledData 按照 zindex 排后续的数据
-     * @param rangesNum   分的range的大小
+     * @param rangesNum 分的range的大小
      * @return
      * @param <T>
      */

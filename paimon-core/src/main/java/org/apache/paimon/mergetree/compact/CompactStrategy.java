@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Optional;
 
 /** Compact strategy to decide which files to select for compaction. */
+
+// 压缩策略决定了被选中的压缩文件
 public interface CompactStrategy {
 
     /**
@@ -36,9 +38,13 @@ public interface CompactStrategy {
      *   <li>compaction is sequential from small level to large level.
      * </ul>
      */
+
+    // 压缩是从小到大的顺序
     Optional<CompactUnit> pick(int numLevels, List<LevelSortedRun> runs);
 
     /** Pick a compaction unit consisting of all existing files. */
+
+    // 选择一个由所有现有文件组成的压缩单元。
     static Optional<CompactUnit> pickFullCompaction(int numLevels, List<LevelSortedRun> runs) {
         int maxLevel = numLevels - 1;
         if (runs.isEmpty() || (runs.size() == 1 && runs.get(0).level() == maxLevel)) {

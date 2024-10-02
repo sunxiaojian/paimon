@@ -144,7 +144,9 @@ public class Levels {
 
     public List<LevelSortedRun> levelSortedRuns() {
         List<LevelSortedRun> runs = new ArrayList<>();
+        // level0 每个文件一个 SortRun
         level0.forEach(file -> runs.add(new LevelSortedRun(0, SortedRun.fromSingle(file))));
+        // 其它level, 每个level 有一个SortRun
         for (int i = 0; i < levels.size(); i++) {
             SortedRun run = levels.get(i);
             if (run.nonEmpty()) {

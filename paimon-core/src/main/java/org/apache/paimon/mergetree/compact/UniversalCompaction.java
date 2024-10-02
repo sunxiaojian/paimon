@@ -39,6 +39,8 @@ import java.util.Optional;
  * <p>See RocksDb Universal-Compaction:
  * https://github.com/facebook/rocksdb/wiki/Universal-Compaction.
  */
+
+// 更低的写放大，权衡读取放大和空间放大。
 public class UniversalCompaction implements CompactStrategy {
 
     private static final Logger LOG = LoggerFactory.getLogger(UniversalCompaction.class);
@@ -83,6 +85,7 @@ public class UniversalCompaction implements CompactStrategy {
         CompactUnit unit = pickForSizeAmp(maxLevel, runs);
         if (unit != null) {
             if (LOG.isDebugEnabled()) {
+                // 由于尺寸变大导致的压缩
                 LOG.debug("Universal compaction due to size amplification");
             }
             return Optional.of(unit);
@@ -116,6 +119,7 @@ public class UniversalCompaction implements CompactStrategy {
             return null;
         }
 
+        // 候选人的总数量
         long candidateSize =
                 runs.subList(0, runs.size() - 1).stream()
                         .map(LevelSortedRun::run)
@@ -125,6 +129,7 @@ public class UniversalCompaction implements CompactStrategy {
         long earliestRunSize = runs.get(runs.size() - 1).run().totalSize();
 
         // size amplification = percentage of additional size
+        // todo 方程的解析
         if (candidateSize * 100 > maxSizeAmp * earliestRunSize) {
             updateLastOptimizedCompaction();
             return CompactUnit.fromLevelRuns(maxLevel, runs);

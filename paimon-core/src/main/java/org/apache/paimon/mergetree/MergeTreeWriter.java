@@ -214,14 +214,18 @@ public class MergeTreeWriter implements RecordWriter<KeyValue>, MemoryOwner {
                 waitForLatestCompaction = true;
             }
 
+            // 判断要不要声明 change log writer（若是input 是直接写入 change log 目录， 所以需要创建新的滚动log 的文件）
             final RollingFileWriter<KeyValue, DataFileMeta> changelogWriter =
                     (changelogProducer == ChangelogProducer.INPUT && !isInsertOnly)
                             ? writerFactory.createRollingChangelogFileWriter(0)
                             : null;
+
+            // 文件先滚动刷新到 l0 中
             final RollingFileWriter<KeyValue, DataFileMeta> dataWriter =
                     writerFactory.createRollingMergeTreeFileWriter(0, FileSource.APPEND);
 
             try {
+                // 将 buffer 中的数据刷新到 l0 中
                 writeBuffer.forEach(
                         keyComparator,
                         mergeFunction,
@@ -249,12 +253,14 @@ public class MergeTreeWriter implements RecordWriter<KeyValue>, MemoryOwner {
                 newFilesChangelog.addAll(changelogMetas);
             }
 
+            // 将文件添加到 level0 层
             for (DataFileMeta dataMeta : dataMetas) {
                 newFiles.add(dataMeta);
                 compactManager.addNewFile(dataMeta);
             }
         }
-
+        // waitForLatestCompaction=true等待上一个compaction 完成，再进行下一个压缩开始， 若
+        // waitForLatestCompaction=false, 则不需要等待，直接触发压缩
         trySyncLatestCompaction(waitForLatestCompaction);
         compactManager.triggerCompaction(forcedFullCompaction);
     }

@@ -1761,6 +1761,7 @@ public class CoreOptions implements Serializable {
         return Math.max(numSortedRunCompactionTrigger(), stopTrigger);
     }
 
+    // 如果 num levels 是空， 怎默认是6
     public int numLevels() {
         // By default, this ensures that the compaction does not fall to level 0, but at least to
         // level 1

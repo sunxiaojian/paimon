@@ -25,17 +25,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** A files unit for compaction. */
+
+// 一个压缩单元
 public interface CompactUnit {
 
+    // 需要输出到的level， 一般是将当前层级压缩到指定的层级
     int outputLevel();
 
+    // 需要进行压缩的文件
     List<DataFileMeta> files();
 
     static CompactUnit fromLevelRuns(int outputLevel, List<LevelSortedRun> runs) {
         List<DataFileMeta> files = new ArrayList<>();
         for (LevelSortedRun run : runs) {
+            // 添加所有的文件
             files.addAll(run.run().files());
         }
+        // 返回包含所有文件的 Compact Unit
         return fromFiles(outputLevel, files);
     }
 

@@ -73,6 +73,7 @@ public class MergeTreeCompactTask extends CompactTask {
         this.upgradeFilesNum = 0;
     }
 
+    // 开始进行压缩
     @Override
     protected CompactResult doCompact() throws Exception {
         List<List<SortedRun>> candidate = new ArrayList<>();
@@ -81,6 +82,8 @@ public class MergeTreeCompactTask extends CompactTask {
         // Checking the order and compacting adjacent and contiguous files
         // Note: can't skip an intermediate file to compact, this will destroy the overall
         // orderliness
+
+        // 检查相邻和顺序的文件并进行压缩，顺序去执行压缩
         for (List<SortedRun> section : partitioned) {
             if (section.size() > 1) {
                 candidate.add(section);
@@ -142,6 +145,7 @@ public class MergeTreeCompactTask extends CompactTask {
             if (section.size() == 0) {
                 return;
             } else if (section.size() == 1) {
+                // 遍历选中的文件进行压缩
                 for (DataFileMeta file : section.get(0).files()) {
                     upgrade(file, toUpdate);
                 }

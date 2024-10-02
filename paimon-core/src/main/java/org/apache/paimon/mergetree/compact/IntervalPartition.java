@@ -30,6 +30,8 @@ import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 
 /** Algorithm to partition several data files into the minimum number of {@link SortedRun}s. */
+
+// 算法将多个数据文件分割成最少数量的SortedRun。
 public class IntervalPartition {
 
     private final List<DataFileMeta> files;
@@ -37,6 +39,7 @@ public class IntervalPartition {
 
     public IntervalPartition(List<DataFileMeta> inputFiles, Comparator<InternalRow> keyComparator) {
         this.files = new ArrayList<>(inputFiles);
+        // 排序
         this.files.sort(
                 (o1, o2) -> {
                     int leftResult = keyComparator.compare(o1.minKey(), o2.minKey());
@@ -70,8 +73,9 @@ public class IntervalPartition {
         BinaryRow bound = null;
 
         for (DataFileMeta meta : files) {
+            // 比较是不是有重叠
             if (!section.isEmpty() && keyComparator.compare(meta.minKey(), bound) > 0) {
-                // larger than current right bound, conclude current section and create a new one
+                // larger than current right bound, conclude current section and create a new one   大于当前右边界，结束当前部分并创建一个新的部分
                 result.add(partition(section));
                 section.clear();
                 bound = null;
