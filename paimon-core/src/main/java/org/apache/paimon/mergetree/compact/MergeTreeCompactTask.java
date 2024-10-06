@@ -86,6 +86,7 @@ public class MergeTreeCompactTask extends CompactTask {
         // orderliness
 
         // 检查相邻和顺序的文件并进行压缩，顺序去执行压缩
+        // sorted run 之间的文件不进行交叉
         for (List<SortedRun> section : partitioned) {
             // 当前分割批次的数量> 1, 则直接加到后补名单中
             if (section.size() > 1) {
@@ -98,7 +99,7 @@ public class MergeTreeCompactTask extends CompactTask {
                 // rewriting it
                 // But for small files, we will try to compact it
 
-                // 小文件进行压缩，大的文件，直接升级大下个层级即可
+                // 小文件进行压缩，大的文件，直接升级到下个层级即可
                 for (DataFileMeta file : run.files()) {
                     if (file.fileSize() < minFileSize) {
                         // Smaller files are rewritten along with the previous files
@@ -106,9 +107,9 @@ public class MergeTreeCompactTask extends CompactTask {
                         candidate.add(singletonList(SortedRun.fromSingle(file)));
                     } else {
                         // Large file appear, rewrite previous and upgrade it
-                        // 先 rewrite 小文件
+                        // 出现大文件，重写之前的文件并升级
                         rewrite(candidate, result);
-                        // 把大文件升级到下一层级
+                        // 再把当前的大文件升级到最高层
                         upgrade(file, result);
                     }
                 }
@@ -135,7 +136,7 @@ public class MergeTreeCompactTask extends CompactTask {
         }
 
         if (outputLevel != maxLevel || file.deleteRowCount().map(d -> d == 0).orElse(false)) {
-            // 如果outputLevel不是最大的level, 或者当前文件的删除的行是0， 则进行
+            // 如果outputLevel不是最大的level, 或者当前文件的删除的行是0， 则直接将文件升级到下一层
             CompactResult upgradeResult = rewriter.upgrade(outputLevel, file);
             toUpdate.merge(upgradeResult);
             upgradeFilesNum++;
@@ -149,6 +150,7 @@ public class MergeTreeCompactTask extends CompactTask {
         }
     }
 
+    // 小文件重写
     private void rewrite(List<List<SortedRun>> candidate, CompactResult toUpdate) throws Exception {
         if (candidate.isEmpty()) {
             return;

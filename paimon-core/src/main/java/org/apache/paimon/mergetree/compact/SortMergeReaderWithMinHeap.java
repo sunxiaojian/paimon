@@ -39,6 +39,7 @@ public class SortMergeReaderWithMinHeap<T> implements SortMergeReader<T> {
     private final Comparator<InternalRow> userKeyComparator;
     private final MergeFunctionWrapper<T> mergeFunctionWrapper;
 
+    // 堆排序
     private final PriorityQueue<Element> minHeap;
     private final List<Element> polled;
 
@@ -166,6 +167,8 @@ public class SortMergeReaderWithMinHeap<T> implements SortMergeReader<T> {
 
             // fetch all elements with the same key
             // note that the same iterator should not produce the same keys, so this code is correct
+
+            // 获取 所有相同 id 的数据
             while (!minHeap.isEmpty()) {
                 Element element = minHeap.peek();
                 if (userKeyComparator.compare(key, element.kv.key()) != 0) {

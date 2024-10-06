@@ -80,7 +80,7 @@ public class IntervalPartition {
             // 如果当前的文件的minkey 大于上个文件的maxkey, 则进行
             if (!section.isEmpty() && keyComparator.compare(meta.minKey(), bound) > 0) {
                 // larger than current right bound, conclude current section and create a new one
-                // 大于当前右边界，结束当前部分并创建一个拆分
+                // 当前与之前的文件组存在重叠，则生成一个 SortedRun， 并新生成一个
                 result.add(partition(section));
                 section.clear();
                 bound = null;

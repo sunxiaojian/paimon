@@ -82,6 +82,8 @@ public class UniversalCompaction implements CompactStrategy {
         }
 
         // 1 checking for reducing size amplification
+        // size amplification ratio = (size(R1) + size(R2) + ... size(Rn-1)) / size(Rn) （空间放大比例）
+        // 这个算法的基础就是我们经常把数据压缩到最后一层，这一层的数据几乎占了总数据量的 80% 以上
         CompactUnit unit = pickForSizeAmp(maxLevel, runs);
         if (unit != null) {
             if (LOG.isDebugEnabled()) {
@@ -92,6 +94,8 @@ public class UniversalCompaction implements CompactStrategy {
         }
 
         // 2 checking for size ratio
+        // size_ratio_trigger = (100 + options.compaction_options_universal.size_ratio) / 100
+        // (由Individual Size Ratio触发的合并)
         unit = pickForSizeRatio(maxLevel, runs);
         if (unit != null) {
             if (LOG.isDebugEnabled()) {
@@ -101,6 +105,7 @@ public class UniversalCompaction implements CompactStrategy {
         }
 
         // 3 checking for file num
+        // SortedRun 达到一定的数量后合并
         if (runs.size() > numRunCompactionTrigger) {
             // compacting for file num
             int candidateCount = runs.size() - numRunCompactionTrigger + 1;
@@ -113,23 +118,26 @@ public class UniversalCompaction implements CompactStrategy {
         return Optional.empty();
     }
 
+    // 空间放大比例达到一定程度
     @VisibleForTesting
     CompactUnit pickForSizeAmp(int maxLevel, List<LevelSortedRun> runs) {
+        // 前提条件是 SortedRun 数量大于触发压缩的数量
         if (runs.size() < numRunCompactionTrigger) {
             return null;
         }
 
-        // 候选人的总数量
+        // 计算 size(R1) + size(R2) + ... size(Rn-1))
         long candidateSize =
                 runs.subList(0, runs.size() - 1).stream()
                         .map(LevelSortedRun::run)
                         .mapToLong(SortedRun::totalSize)
                         .sum();
 
+        // 计算（size（Rn））
         long earliestRunSize = runs.get(runs.size() - 1).run().totalSize();
 
         // size amplification = percentage of additional size
-        // todo 方程的解析
+        // size amplification ratio = (size(R1) + size(R2) + ... size(Rn-1)) / size(Rn)
         if (candidateSize * 100 > maxSizeAmp * earliestRunSize) {
             updateLastOptimizedCompaction();
             return CompactUnit.fromLevelRuns(maxLevel, runs);
@@ -140,6 +148,7 @@ public class UniversalCompaction implements CompactStrategy {
 
     @VisibleForTesting
     CompactUnit pickForSizeRatio(int maxLevel, List<LevelSortedRun> runs) {
+        // 触发的前置条件， 必须SortedRun的数量大于指定的触发num
         if (runs.size() < numRunCompactionTrigger) {
             return null;
         }
@@ -154,13 +163,15 @@ public class UniversalCompaction implements CompactStrategy {
 
     public CompactUnit pickForSizeRatio(
             int maxLevel, List<LevelSortedRun> runs, int candidateCount, boolean forcePick) {
+        // 候选数量默认是从 1 开始
         long candidateSize = candidateSize(runs, candidateCount);
         for (int i = candidateCount; i < runs.size(); i++) {
             LevelSortedRun next = runs.get(i);
+            // size_ratio_trigger = (100 + options.compaction_options_universal.size_ratio) / 100
+            // (由Individual Size Ratio触发的合并)
             if (candidateSize * (100.0 + sizeRatio) / 100.0 < next.run().totalSize()) {
                 break;
             }
-
             candidateSize += next.run().totalSize();
             candidateCount++;
         }

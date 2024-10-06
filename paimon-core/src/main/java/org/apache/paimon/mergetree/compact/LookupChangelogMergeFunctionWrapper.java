@@ -108,7 +108,9 @@ public class LookupChangelogMergeFunctionWrapper<T>
     public ChangelogResult getResult() {
         // 1. Compute the latest high level record and containLevel0 of candidates
         LinkedList<KeyValue> candidates = mergeFunction.candidates();
+        // 倒序迭代器
         Iterator<KeyValue> descending = candidates.descendingIterator();
+        // 最高级别的 keyValue 的值数据
         KeyValue highLevel = null;
         boolean containLevel0 = false;
         while (descending.hasNext()) {
@@ -124,6 +126,7 @@ public class LookupChangelogMergeFunctionWrapper<T>
         }
 
         // 2. Lookup if latest high level record is absent
+        // 查找是否缺少最搞层级的记录
         if (highLevel == null) {
             InternalRow lookupKey = candidates.get(0).key();
             T lookupResult = lookup.apply(lookupKey);

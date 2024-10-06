@@ -134,6 +134,7 @@ public class FlinkSinkBuilder {
     }
 
     /** Clustering the input data if possible. */
+    // 如果可能，对输入数据进行聚类。
     public FlinkSinkBuilder clusteringIfPossible(
             String clusteringColumns,
             String clusteringStrategy,
@@ -227,12 +228,15 @@ public class FlinkSinkBuilder {
         BucketMode bucketMode = table.bucketMode();
         switch (bucketMode) {
             case HASH_FIXED:
+                // 固定bucket
                 return buildForFixedBucket(input);
             case HASH_DYNAMIC:
+                // 动态bucket， 老的数据进入来的bucket中，新数据进入新的 bucket （动态生成）
                 return buildDynamicBucketSink(input, false);
             case CROSS_PARTITION:
                 return buildDynamicBucketSink(input, true);
             case BUCKET_UNAWARE:
+                // 只适合 append table
                 return buildUnawareBucketSink(input);
             default:
                 throw new UnsupportedOperationException("Unsupported bucket mode: " + bucketMode);

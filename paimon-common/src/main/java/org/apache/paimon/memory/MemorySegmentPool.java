@@ -31,6 +31,7 @@ import java.util.List;
 @Public
 public interface MemorySegmentPool extends MemorySegmentSource {
 
+    // 默认是 32kb
     int DEFAULT_PAGE_SIZE = 32 * 1024;
 
     /**

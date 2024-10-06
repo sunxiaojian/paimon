@@ -305,6 +305,7 @@ public class KeyValueFileStoreWrite extends MemoryFileStoreWrite<KeyValue> {
             LookupMergeTreeCompactRewriter.MergeFunctionWrapperFactory<?> wrapperFactory;
             FileReaderFactory<KeyValue> lookupReaderFactory = readerFactory;
             if (lookupStrategy.isFirstRow) {
+                // first row 合并策略，不支持ddletion vector 引擎，因为只选择第一个
                 if (options.deletionVectorsEnabled()) {
                     throw new UnsupportedOperationException(
                             "First row merge engine does not need deletion vectors because there is no deletion of old data in this merge engine.");
@@ -319,6 +320,7 @@ public class KeyValueFileStoreWrite extends MemoryFileStoreWrite<KeyValue> {
             } else {
                 processor =
                         lookupStrategy.deletionVector
+                                // position key value 处理器 ，类似 iceberg 的 position delete file
                                 ? new PositionedKeyValueProcessor(
                                         valueType,
                                         lookupStrategy.produceChangelog

@@ -87,6 +87,7 @@ public abstract class ChangelogMergeTreeRewriter extends MergeTreeCompactRewrite
             return false;
         }
 
+        // lookup 只关注 Level0， 因为level0 的数据是直接刷新过来的，level0都是新增的数据
         for (List<SortedRun> runs : sections) {
             for (SortedRun run : runs) {
                 for (DataFileMeta file : run.files()) {
@@ -105,6 +106,7 @@ public abstract class ChangelogMergeTreeRewriter extends MergeTreeCompactRewrite
         if (rewriteChangelog(outputLevel, dropDelete, sections)) {
             return rewriteOrProduceChangelog(outputLevel, sections, dropDelete, true);
         } else {
+            // 直接走正常逻辑 rewrite compaction
             return rewriteCompaction(outputLevel, dropDelete, sections);
         }
     }

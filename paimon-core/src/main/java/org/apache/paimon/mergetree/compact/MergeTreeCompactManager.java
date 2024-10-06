@@ -117,6 +117,7 @@ public class MergeTreeCompactManager extends CompactFutureManager {
         Optional<CompactUnit> optionalUnit;
         // L0 每一个文件对应一个sorted run, L0往下每一层有一个sorted run. 每一个sorted run 对应一个或多个文件,文件写到一定大小就会rolling
         // out. 所以同一层的sorted run看做是一个全局按照pk排序的文件.
+        // 计算总的 sorted run
         List<LevelSortedRun> runs = levels.levelSortedRuns();
         if (fullCompaction) {
             Preconditions.checkState(
@@ -128,7 +129,7 @@ public class MergeTreeCompactManager extends CompactFutureManager {
                         "Trigger forced full compaction. Picking from the following runs\n{}",
                         runs);
             }
-            // 全部压缩到最后MaxLevel
+            // 全压缩是将文件全部压缩到 MaxLevel
             optionalUnit = CompactStrategy.pickFullCompaction(levels.numberOfLevels(), runs);
         } else {
             if (taskFuture != null) {
@@ -137,6 +138,7 @@ public class MergeTreeCompactManager extends CompactFutureManager {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Trigger normal compaction. Picking from the following runs\n{}", runs);
             }
+            // 开始压缩
             optionalUnit =
                     strategy.pick(levels.numberOfLevels(), runs)
                             .filter(unit -> unit.files().size() > 0)
@@ -175,6 +177,7 @@ public class MergeTreeCompactManager extends CompactFutureManager {
                                                                         file.fileSize()))
                                                 .collect(Collectors.joining(", ")));
                     }
+                    // 提交压缩
                     submitCompaction(unit, dropDelete);
                 });
     }

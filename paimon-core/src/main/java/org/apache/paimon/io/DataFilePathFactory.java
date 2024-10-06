@@ -61,6 +61,7 @@ public class DataFilePathFactory {
         return newPath(changelogFilePrefix);
     }
 
+    // 生成新的文件路径
     private Path newPath(String prefix) {
         String name = prefix + uuid + "-" + pathCount.getAndIncrement() + "." + formatIdentifier;
         return new Path(parent, name);

@@ -166,6 +166,7 @@ public class MergeTreeWriter implements RecordWriter<KeyValue>, MemoryOwner {
         long sequenceNumber = newSequenceNumber();
         boolean success = writeBuffer.put(sequenceNumber, kv.valueKind(), kv.key(), kv.value());
         if (!success) {
+            // 若写入不成功，先将内存中数据刷新到磁盘中，并进行一次压缩
             flushWriteBuffer(false, false);
             success = writeBuffer.put(sequenceNumber, kv.valueKind(), kv.key(), kv.value());
             if (!success) {
@@ -214,7 +215,7 @@ public class MergeTreeWriter implements RecordWriter<KeyValue>, MemoryOwner {
                 waitForLatestCompaction = true;
             }
 
-            // 判断要不要声明 change log writer（若是input 是直接写入 change log 目录， 所以需要创建新的滚动log 的文件）
+            // 判断是否要声明 change log writer（若是input 是直接写入 change log 目录， 所以需要创建新的滚动log 的文件）
             final RollingFileWriter<KeyValue, DataFileMeta> changelogWriter =
                     (changelogProducer == ChangelogProducer.INPUT && !isInsertOnly)
                             ? writerFactory.createRollingChangelogFileWriter(0)
@@ -225,13 +226,15 @@ public class MergeTreeWriter implements RecordWriter<KeyValue>, MemoryOwner {
                     writerFactory.createRollingMergeTreeFileWriter(0, FileSource.APPEND);
 
             try {
-                // 将 buffer 中的数据刷新到 l0 中
+                // 将 memory 中的数据刷新到 level0 , Memory中的数据是已经排序过的, 写入到对应的磁盘文件中
                 writeBuffer.forEach(
                         keyComparator,
                         mergeFunction,
+                        // 直接写入change log 文件中
                         changelogWriter == null ? null : changelogWriter::write,
                         dataWriter::write);
             } finally {
+                // 清空 memory， 供后续使用
                 writeBuffer.clear();
                 if (changelogWriter != null) {
                     changelogWriter.close();
@@ -239,6 +242,7 @@ public class MergeTreeWriter implements RecordWriter<KeyValue>, MemoryOwner {
                 dataWriter.close();
             }
 
+            // 返回写入文件的描述 DataFileMeta
             List<DataFileMeta> dataMetas = dataWriter.result();
             if (changelogWriter != null) {
                 newFilesChangelog.addAll(changelogWriter.result());
@@ -253,7 +257,7 @@ public class MergeTreeWriter implements RecordWriter<KeyValue>, MemoryOwner {
                 newFilesChangelog.addAll(changelogMetas);
             }
 
-            // 将文件添加到 level0 层
+            // 将返回的文件结果添加到 level0 层
             for (DataFileMeta dataMeta : dataMetas) {
                 newFiles.add(dataMeta);
                 compactManager.addNewFile(dataMeta);
@@ -262,6 +266,7 @@ public class MergeTreeWriter implements RecordWriter<KeyValue>, MemoryOwner {
         // waitForLatestCompaction=true等待上一个compaction 完成，再进行下一个压缩开始， 若
         // waitForLatestCompaction=false, 则不需要等待，直接触发压缩
         trySyncLatestCompaction(waitForLatestCompaction);
+        // 触发对文件的压缩，内部会分为全压缩和部分压缩 ， 部分压缩会有三个方式
         compactManager.triggerCompaction(forcedFullCompaction);
     }
 

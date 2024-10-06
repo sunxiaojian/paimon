@@ -400,6 +400,7 @@ public abstract class AbstractFileStoreWrite<T> implements FileStoreWrite<T> {
         return writers.values().stream().mapToLong(e -> e.values().size()).sum();
     }
 
+    // 创建数据写入的容器
     @VisibleForTesting
     public WriterContainer<T> createWriterContainer(
             BinaryRow partition, int bucket, boolean ignorePreviousFiles) {
