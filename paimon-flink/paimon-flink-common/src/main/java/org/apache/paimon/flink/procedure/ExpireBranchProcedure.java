@@ -18,31 +18,27 @@
 
 package org.apache.paimon.flink.procedure;
 
+import org.apache.paimon.branch.Branch;
 import org.apache.paimon.catalog.Catalog;
 import org.apache.paimon.catalog.Identifier;
-import org.apache.paimon.table.Table;
-import org.apache.paimon.utils.TimeUtils;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.procedure.ProcedureContext;
 
-import javax.annotation.Nullable;
-
-import java.time.Duration;
+import java.util.List;
 
 /**
- * Create branch procedure for given tag. Usage:
+ * Delete branch procedure. Usage:
  *
  * <pre><code>
- *  CALL sys.create_branch('tableId', 'branchName', 'tagName')
+ *  CALL sys.expire_branch('tableId')
  * </code></pre>
  */
-public class CreateBranchProcedure extends ProcedureBase {
+public class ExpireBranchProcedure extends ProcedureBase {
 
-    public static final String IDENTIFIER = "create_branch";
+    public static final String IDENTIFIER = "expire_branch";
 
     @Override
     public String identifier() {
@@ -52,35 +48,13 @@ public class CreateBranchProcedure extends ProcedureBase {
     @ProcedureHint(
             argument = {
                 @ArgumentHint(name = "table", type = @DataTypeHint("STRING")),
-                @ArgumentHint(name = "branch", type = @DataTypeHint("STRING")),
-                @ArgumentHint(name = "tag", type = @DataTypeHint("STRING"), isOptional = true),
-                @ArgumentHint(
-                        name = "time_retained",
-                        type = @DataTypeHint("STRING"),
-                        isOptional = true)
             })
-    public String[] call(
-            ProcedureContext procedureContext,
-            String tableId,
-            String branchName,
-            String tagName,
-            String timeRetained)
+    public String[] call(ProcedureContext procedureContext, String tableId)
             throws Catalog.TableNotExistException {
-        Table table = catalog.getTable(Identifier.fromString(tableId));
-        if (!StringUtils.isBlank(tagName)) {
-            table.createBranch(branchName, tagName, toDuration(timeRetained));
-        } else {
-            table.createBranch(branchName, toDuration(timeRetained));
-        }
-        return new String[] {"Success"};
-    }
-
-    @Nullable
-    private static Duration toDuration(@Nullable String s) {
-        if (s == null) {
-            return null;
-        }
-
-        return TimeUtils.parseDuration(s);
+        List<Branch> expireBranches =
+                catalog.getTable(Identifier.fromString(tableId)).expireBranches();
+        return expireBranches == null || expireBranches.isEmpty()
+                ? new String[] {"No expired branches."}
+                : expireBranches.stream().map(Branch::getBranchName).toArray(String[]::new);
     }
 }

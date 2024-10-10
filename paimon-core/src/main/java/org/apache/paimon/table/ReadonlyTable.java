@@ -19,6 +19,7 @@
 package org.apache.paimon.table;
 
 import org.apache.paimon.Snapshot;
+import org.apache.paimon.branch.Branch;
 import org.apache.paimon.manifest.IndexManifestEntry;
 import org.apache.paimon.manifest.ManifestEntry;
 import org.apache.paimon.manifest.ManifestFileMeta;
@@ -222,7 +223,23 @@ public interface ReadonlyTable extends InnerTable {
     }
 
     @Override
+    default void createBranch(String branchName, Duration timeRetained) {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "Readonly Table %s does not support createBranch.",
+                        this.getClass().getSimpleName()));
+    }
+
+    @Override
     default void createBranch(String branchName, String tagName) {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "Readonly Table %s does not support createBranch.",
+                        this.getClass().getSimpleName()));
+    }
+
+    @Override
+    default void createBranch(String branchName, String tagName, Duration timeRetained) {
         throw new UnsupportedOperationException(
                 String.format(
                         "Readonly Table %s does not support createBranch.",
@@ -234,6 +251,14 @@ public interface ReadonlyTable extends InnerTable {
         throw new UnsupportedOperationException(
                 String.format(
                         "Readonly Table %s does not support deleteBranch.",
+                        this.getClass().getSimpleName()));
+    }
+
+    @Override
+    default List<Branch> expireBranches() {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "Readonly Table %s does not support expireBranches.",
                         this.getClass().getSimpleName()));
     }
 

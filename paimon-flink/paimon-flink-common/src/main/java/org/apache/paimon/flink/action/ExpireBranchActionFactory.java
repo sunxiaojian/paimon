@@ -18,22 +18,15 @@
 
 package org.apache.paimon.flink.action;
 
-import org.apache.paimon.utils.TimeUtils;
-
 import org.apache.flink.api.java.tuple.Tuple3;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 
-/** Factory to create {@link CreateBranchAction}. */
-public class CreateBranchActionFactory implements ActionFactory {
+/** Factory to create {@link ExpireBranchAction}. */
+public class ExpireBranchActionFactory implements ActionFactory {
 
-    public static final String IDENTIFIER = "create_branch";
-
-    private static final String TAG_NAME = "tag_name";
-    private static final String BRANCH_NAME = "branch_name";
-    private static final String TIME_RETAINED = "time_retained";
+    public static final String IDENTIFIER = "expire_branch";
 
     @Override
     public String identifier() {
@@ -42,44 +35,21 @@ public class CreateBranchActionFactory implements ActionFactory {
 
     @Override
     public Optional<Action> create(MultipleParameterToolAdapter params) {
-        checkRequiredArgument(params, BRANCH_NAME);
-
         Tuple3<String, String, String> tablePath = getTablePath(params);
         Map<String, String> catalogConfig = optionalConfigMap(params, CATALOG_CONF);
-
-        String tagName = null;
-        if (params.has(TAG_NAME)) {
-            tagName = params.get(TAG_NAME);
-        }
-
-        String branchName = params.get(BRANCH_NAME);
-
-        Duration timeRetained = null;
-        if (params.has(TIME_RETAINED)) {
-            timeRetained = TimeUtils.parseDuration(params.get(TIME_RETAINED));
-        }
-
-        CreateBranchAction action =
-                new CreateBranchAction(
-                        tablePath.f0,
-                        tablePath.f1,
-                        tablePath.f2,
-                        catalogConfig,
-                        branchName,
-                        tagName,
-                        timeRetained);
+        ExpireBranchAction action =
+                new ExpireBranchAction(tablePath.f0, tablePath.f1, tablePath.f2, catalogConfig);
         return Optional.of(action);
     }
 
     @Override
     public void printHelp() {
-        System.out.println("Action \"create_branch\" create a branch from given tag.");
+        System.out.println("Action \"expire_branch\" clean expired branches.");
         System.out.println();
 
         System.out.println("Syntax:");
         System.out.println(
-                "  create_branch --warehouse <warehouse_path> --database <database_name> "
-                        + "--table <table_name> --branch_name <branch_name> [--tag_name <tag_name>] [--time_retained <time_retained>]");
+                "  expire_branch --warehouse <warehouse_path> --database <database_name> --table <table_name> ");
         System.out.println();
     }
 }

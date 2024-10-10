@@ -19,17 +19,24 @@
 package org.apache.paimon.utils;
 
 import org.apache.paimon.Snapshot;
+import org.apache.paimon.branch.Branch;
 import org.apache.paimon.fs.FileIO;
 import org.apache.paimon.fs.Path;
 import org.apache.paimon.schema.SchemaManager;
 import org.apache.paimon.schema.TableSchema;
+import org.apache.paimon.tag.Tag;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -88,8 +95,13 @@ public class BranchManager {
         return new Path(branchPath(tablePath, branchName));
     }
 
+    /** Return the path of a branch metadata file. */
+    public Path branchMetadataPath(String branchName) {
+        return new Path(branchPath(tablePath, branchName) + "/METADATA");
+    }
+
     /** Create empty branch. */
-    public void createBranch(String branchName) {
+    public void createBranch(String branchName, Duration timeRetained) {
         validateBranch(branchName);
 
         try {
@@ -98,6 +110,9 @@ public class BranchManager {
                     schemaManager.toSchemaPath(latestSchema.id()),
                     schemaManager.copyWithBranch(branchName).toSchemaPath(latestSchema.id()),
                     true);
+
+            // Create branch metadata file with timeRetained
+            overrideBranchMetaData(branchName, null, null, timeRetained);
         } catch (IOException e) {
             throw new RuntimeException(
                     String.format(
@@ -107,7 +122,7 @@ public class BranchManager {
         }
     }
 
-    public void createBranch(String branchName, String tagName) {
+    public void createBranch(String branchName, String tagName, Duration timeRetained) {
         validateBranch(branchName);
         checkArgument(tagManager.tagExists(tagName), "Tag name '%s' not exists.", tagName);
 
@@ -127,6 +142,8 @@ public class BranchManager {
                     schemaManager.toSchemaPath(snapshot.schemaId()),
                     schemaManager.copyWithBranch(branchName).toSchemaPath(snapshot.schemaId()),
                     true);
+            // Create branch metadata file with timeRetained
+            overrideBranchMetaData(branchName, tagName, snapshot, timeRetained);
         } catch (IOException e) {
             throw new RuntimeException(
                     String.format(
@@ -134,6 +151,16 @@ public class BranchManager {
                             branchName, branchPath(tablePath, branchName)),
                     e);
         }
+    }
+
+    private void overrideBranchMetaData(
+            String branchName, String tagName, Snapshot snapshot, Duration timeRetained)
+            throws IOException {
+        String content =
+                Branch.fromTagAndBranchTtl(
+                                branchName, tagName, snapshot, LocalDateTime.now(), timeRetained)
+                        .toJson();
+        fileIO.overwriteFileUtf8(branchMetadataPath(branchName), content);
     }
 
     public void deleteBranch(String branchName) {
@@ -233,6 +260,36 @@ public class BranchManager {
         }
     }
 
+    public Map<String, Branch> branchObjectsAsMap() {
+        List<Branch> branches = branchObjects();
+        if (branches.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return branchObjects().stream()
+                .collect(Collectors.toMap(branch -> branch.getBranchName(), branch -> branch));
+    }
+
+    /** Get all {@link Tag}s. */
+    public List<Branch> branchObjects() {
+        try {
+            List<Path> paths =
+                    listVersionedDirectories(fileIO, branchDirectory(), BRANCH_PREFIX)
+                            .map(status -> status.getPath())
+                            .collect(Collectors.toList());
+            List<Branch> branches = new ArrayList<>();
+            for (Path path : paths) {
+                String branchName = path.getName().substring(BRANCH_PREFIX.length());
+                Branch branch = Branch.safelyFromPath(fileIO, branchMetadataPath(branchName));
+                if (branch != null) {
+                    branches.add(branch);
+                }
+            }
+            return branches;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private void validateBranch(String branchName) {
         checkArgument(
                 !isMainBranch(branchName),
@@ -248,5 +305,26 @@ public class BranchManager {
                 !branchName.chars().allMatch(Character::isDigit),
                 "Branch name cannot be pure numeric string but is '%s'.",
                 branchName);
+    }
+
+    public List<Branch> expireBranches() {
+        List<Branch> expiredBranch = new ArrayList<>();
+        List<Branch> branches = branchObjects();
+        for (Branch branch : branches) {
+            LocalDateTime createTime = branch.getBranchCreateTime();
+            Duration timeRetained = branch.getBranchTimeRetained();
+            if (createTime == null || timeRetained == null) {
+                continue;
+            }
+            if (LocalDateTime.now().isAfter(createTime.plus(timeRetained))) {
+                LOG.info(
+                        "Delete branch {}, because its existence time has reached its timeRetained of {}.",
+                        branch.getBranchName(),
+                        timeRetained);
+                deleteBranch(branch.getBranchName());
+                expiredBranch.add(branch);
+            }
+        }
+        return expiredBranch;
     }
 }

@@ -21,6 +21,7 @@ package org.apache.paimon.flink;
 import org.apache.paimon.CoreOptions;
 import org.apache.paimon.Snapshot;
 import org.apache.paimon.utils.BlockingIterator;
+import org.apache.paimon.utils.TimeUtils;
 
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
@@ -287,6 +288,28 @@ public class AppendOnlyTableITCase extends CatalogITCaseBase {
         sql("INSERT INTO T VALUES (2)");
         // Only fetch latest snapshot is, dynamic option worked
         assertThat(iterator.collect(1)).containsExactlyInAnyOrder(Row.of(2));
+    }
+
+    @Test
+    public void testReadWriteBranchWithMaxAge() throws Exception {
+        // create table
+        sql("CREATE TABLE T (id INT)");
+        // insert data
+        batchSql("INSERT INTO T VALUES (1)");
+        // create tag
+        paimonTable("T").createTag("tag1", 1);
+        // create branch
+        paimonTable("T").createBranch("branch1", "tag1", TimeUtils.parseDuration("5000ms"));
+        // insert data to branch
+        batchSql("INSERT INTO T/*+ OPTIONS('branch' = 'branch1') */ VALUES (2)");
+        List<Row> rows = batchSql("select * from T /*+ OPTIONS('branch' = 'branch1') */");
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2), Row.of(1));
+        // Fast Forward branch1
+        paimonTable("T").branchManager().fastForward("branch1");
+        Thread.sleep(5000);
+        // insert data to main branch and expired branch1
+        batchSql("INSERT INTO T VALUES (2)");
+        assertThat(paimonTable("T").branchManager().branchExists("branch1")).isFalse();
     }
 
     @Test

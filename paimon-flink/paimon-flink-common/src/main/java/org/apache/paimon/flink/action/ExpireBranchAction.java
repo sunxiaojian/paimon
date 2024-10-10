@@ -18,37 +18,21 @@
 
 package org.apache.paimon.flink.action;
 
-import org.apache.commons.lang3.StringUtils;
-
-import java.time.Duration;
 import java.util.Map;
 
-/** Create branch action for Flink. */
-public class CreateBranchAction extends TableActionBase {
-    private final String branchName;
-    private final String tagName;
-    private final Duration timeRetained;
+/** Expire branch action for Flink. */
+public class ExpireBranchAction extends TableActionBase {
 
-    public CreateBranchAction(
+    public ExpireBranchAction(
             String warehouse,
             String databaseName,
             String tableName,
-            Map<String, String> catalogConfig,
-            String branchName,
-            String tagName,
-            Duration timeRetained) {
+            Map<String, String> catalogConfig) {
         super(warehouse, databaseName, tableName, catalogConfig);
-        this.branchName = branchName;
-        this.tagName = tagName;
-        this.timeRetained = timeRetained;
     }
 
     @Override
     public void run() throws Exception {
-        if (!StringUtils.isBlank(tagName)) {
-            table.createBranch(branchName, tagName, timeRetained);
-        } else {
-            table.createBranch(branchName, timeRetained);
-        }
+        table.expireBranches();
     }
 }

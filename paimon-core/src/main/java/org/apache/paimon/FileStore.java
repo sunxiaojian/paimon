@@ -18,6 +18,7 @@
 
 package org.apache.paimon;
 
+import org.apache.paimon.branch.BranchAutoManager;
 import org.apache.paimon.fs.Path;
 import org.apache.paimon.index.IndexFileHandler;
 import org.apache.paimon.manifest.IndexManifestFile;
@@ -99,6 +100,8 @@ public interface FileStore<T> {
     PartitionExpire newPartitionExpire(String commitUser);
 
     TagAutoManager newTagCreationManager();
+
+    BranchAutoManager newBranchCreationManager();
 
     ServiceManager newServiceManager();
 

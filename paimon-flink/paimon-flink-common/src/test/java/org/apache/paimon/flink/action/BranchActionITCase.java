@@ -47,19 +47,7 @@ class BranchActionITCase extends ActionITCaseBase {
     @Test
     void testCreateAndDeleteBranch() throws Exception {
 
-        init(warehouse);
-
-        RowType rowType =
-                RowType.of(
-                        new DataType[] {DataTypes.BIGINT(), DataTypes.STRING()},
-                        new String[] {"k", "v"});
-        FileStoreTable table =
-                createFileStoreTable(
-                        rowType,
-                        Collections.emptyList(),
-                        Collections.singletonList("k"),
-                        Collections.emptyList(),
-                        Collections.emptyMap());
+        FileStoreTable table = fileStoreTable();
 
         StreamWriteBuilder writeBuilder = table.newStreamWriteBuilder().withCommitUser(commitUser);
         write = writeBuilder.newWrite();
@@ -132,21 +120,61 @@ class BranchActionITCase extends ActionITCaseBase {
     }
 
     @Test
+    void testCreateAndDeleteEmptyBranchWithRetainedTime() throws Exception {
+        FileStoreTable table = fileStoreTable();
+
+        StreamWriteBuilder writeBuilder = table.newStreamWriteBuilder().withCommitUser(commitUser);
+        write = writeBuilder.newWrite();
+        commit = writeBuilder.newCommit();
+
+        // 3 snapshots
+        writeData(rowData(1L, BinaryString.fromString("Hi")));
+        writeData(rowData(2L, BinaryString.fromString("Hello")));
+        writeData(rowData(3L, BinaryString.fromString("Paimon")));
+
+        BranchManager branchManager = table.branchManager();
+        executeSQL(
+                String.format(
+                        "CALL sys.create_branch(`table` =>'%s.%s', branch =>'empty_branch_name', time_retained =>'1000ms')",
+                        database, tableName));
+        assertThat(branchManager.branchExists("empty_branch_name")).isTrue();
+        Thread.sleep(1000);
+        executeSQL(String.format("CALL sys.expire_branch('%s.%s')", database, tableName));
+        assertThat(branchManager.branchExists("empty_branch_name")).isFalse();
+
+        createAction(
+                        CreateBranchAction.class,
+                        "create_branch",
+                        "--warehouse",
+                        warehouse,
+                        "--database",
+                        database,
+                        "--table",
+                        tableName,
+                        "--branch_name",
+                        "empty_branch_name")
+                .run();
+        assertThat(branchManager.branchExists("empty_branch_name")).isTrue();
+
+        createAction(
+                        DeleteBranchAction.class,
+                        "delete_branch",
+                        "--warehouse",
+                        warehouse,
+                        "--database",
+                        database,
+                        "--table",
+                        tableName,
+                        "--branch_name",
+                        "empty_branch_name")
+                .run();
+        assertThat(branchManager.branchExists("empty_branch_name")).isFalse();
+    }
+
+    @Test
     void testCreateAndDeleteEmptyBranch() throws Exception {
 
-        init(warehouse);
-
-        RowType rowType =
-                RowType.of(
-                        new DataType[] {DataTypes.BIGINT(), DataTypes.STRING()},
-                        new String[] {"k", "v"});
-        FileStoreTable table =
-                createFileStoreTable(
-                        rowType,
-                        Collections.emptyList(),
-                        Collections.singletonList("k"),
-                        Collections.emptyList(),
-                        Collections.emptyMap());
+        FileStoreTable table = fileStoreTable();
 
         StreamWriteBuilder writeBuilder = table.newStreamWriteBuilder().withCommitUser(commitUser);
         write = writeBuilder.newWrite();
@@ -213,18 +241,7 @@ class BranchActionITCase extends ActionITCaseBase {
 
     @Test
     void testFastForward() throws Exception {
-        init(warehouse);
-        RowType rowType =
-                RowType.of(
-                        new DataType[] {DataTypes.BIGINT(), DataTypes.STRING()},
-                        new String[] {"k", "v"});
-        FileStoreTable table =
-                createFileStoreTable(
-                        rowType,
-                        Collections.emptyList(),
-                        Collections.singletonList("k"),
-                        Collections.emptyList(),
-                        Collections.emptyMap());
+        FileStoreTable table = fileStoreTable();
 
         StreamWriteBuilder writeBuilder = table.newStreamWriteBuilder().withCommitUser(commitUser);
         write = writeBuilder.newWrite();
@@ -353,6 +370,22 @@ class BranchActionITCase extends ActionITCaseBase {
         sortedActual = new ArrayList<>(result);
         expected = Arrays.asList("+I[1, Hi]", "+I[2, Hello]", "+I[3, Paimon]");
         Assert.assertEquals(expected, sortedActual);
+    }
+
+    private FileStoreTable fileStoreTable() throws Exception {
+        init(warehouse);
+        RowType rowType =
+                RowType.of(
+                        new DataType[] {DataTypes.BIGINT(), DataTypes.STRING()},
+                        new String[] {"k", "v"});
+        FileStoreTable table =
+                createFileStoreTable(
+                        rowType,
+                        Collections.emptyList(),
+                        Collections.singletonList("k"),
+                        Collections.emptyList(),
+                        Collections.emptyMap());
+        return table;
     }
 
     List<String> readTableData(FileStoreTable table) throws Exception {

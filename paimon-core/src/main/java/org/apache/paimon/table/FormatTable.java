@@ -20,6 +20,7 @@ package org.apache.paimon.table;
 
 import org.apache.paimon.Snapshot;
 import org.apache.paimon.annotation.Public;
+import org.apache.paimon.branch.Branch;
 import org.apache.paimon.catalog.Identifier;
 import org.apache.paimon.manifest.IndexManifestEntry;
 import org.apache.paimon.manifest.ManifestEntry;
@@ -287,12 +288,27 @@ public interface FormatTable extends Table {
     }
 
     @Override
+    default void createBranch(String branchName, Duration timeRetained) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     default void createBranch(String branchName, String tagName) {
         throw new UnsupportedOperationException();
     }
 
     @Override
+    default void createBranch(String branchName, String tagName, Duration timeRetained) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     default void deleteBranch(String branchName) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    default List<Branch> expireBranches() {
         throw new UnsupportedOperationException();
     }
 

@@ -19,6 +19,7 @@
 package org.apache.paimon.table.system;
 
 import org.apache.paimon.Snapshot;
+import org.apache.paimon.branch.Branch;
 import org.apache.paimon.data.BinaryString;
 import org.apache.paimon.data.GenericRow;
 import org.apache.paimon.data.InternalRow;
@@ -87,7 +88,9 @@ public class BranchesTable implements ReadonlyTable {
                             new DataField(
                                     1, "created_from_tag", SerializationUtils.newStringType(true)),
                             new DataField(2, "created_from_snapshot", new BigIntType(true)),
-                            new DataField(3, "create_time", new TimestampType(false, 3))));
+                            new DataField(3, "create_time", new TimestampType(false, 3)),
+                            new DataField(
+                                    4, "time_retained", SerializationUtils.newStringType(true))));
 
     private final FileIO fileIO;
     private final Path location;
@@ -229,6 +232,8 @@ public class BranchesTable implements ReadonlyTable {
             BranchManager branchManager = table.branchManager();
             SchemaManager schemaManager = new SchemaManager(fileIO, table.location());
 
+            Map<String, Branch> branchesAsMap = branchManager.branchObjectsAsMap();
+
             List<Pair<Path, Long>> paths =
                     listVersionedDirectories(fileIO, branchManager.branchDirectory(), BRANCH_PREFIX)
                             .map(status -> Pair.of(status.getPath(), status.getModificationTime()))
@@ -267,14 +272,29 @@ public class BranchesTable implements ReadonlyTable {
                         }
                     }
                 }
+                Branch currentBranch = null;
+                if (branchesAsMap.containsKey(branchName)) {
+                    currentBranch = branchesAsMap.get(branchName);
+                }
 
                 result.add(
                         GenericRow.of(
                                 BinaryString.fromString(branchName),
                                 BinaryString.fromString(basedTag),
                                 basedSnapshotId,
-                                Timestamp.fromLocalDateTime(
-                                        DateTimeUtils.toLocalDateTime(creationTime))));
+                                (currentBranch == null
+                                                || currentBranch.getBranchCreateTime() == null)
+                                        ? Timestamp.fromLocalDateTime(
+                                                DateTimeUtils.toLocalDateTime(creationTime))
+                                        : Timestamp.fromLocalDateTime(
+                                                currentBranch.getBranchCreateTime()),
+                                (currentBranch == null
+                                                || currentBranch.getBranchTimeRetained() == null)
+                                        ? null
+                                        : Optional.ofNullable(currentBranch.getBranchTimeRetained())
+                                                .map(Object::toString)
+                                                .map(BinaryString::fromString)
+                                                .orElse(null)));
             }
 
             return result;

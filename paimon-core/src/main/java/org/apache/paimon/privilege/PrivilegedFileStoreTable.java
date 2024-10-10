@@ -19,6 +19,7 @@
 package org.apache.paimon.privilege;
 
 import org.apache.paimon.FileStore;
+import org.apache.paimon.branch.Branch;
 import org.apache.paimon.catalog.Identifier;
 import org.apache.paimon.manifest.ManifestCacheFilter;
 import org.apache.paimon.schema.TableSchema;
@@ -38,6 +39,7 @@ import org.apache.paimon.utils.BranchManager;
 import org.apache.paimon.utils.TagManager;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -152,15 +154,33 @@ public class PrivilegedFileStoreTable extends DelegatedFileStoreTable {
     }
 
     @Override
+    public void createBranch(String branchName, Duration timeRetained) {
+        privilegeChecker.assertCanInsert(identifier);
+        wrapped.createBranch(branchName, timeRetained);
+    }
+
+    @Override
     public void createBranch(String branchName, String tagName) {
         privilegeChecker.assertCanInsert(identifier);
         wrapped.createBranch(branchName, tagName);
     }
 
     @Override
+    public void createBranch(String branchName, String tagName, Duration timeRetained) {
+        privilegeChecker.assertCanInsert(identifier);
+        wrapped.createBranch(branchName, tagName, timeRetained);
+    }
+
+    @Override
     public void deleteBranch(String branchName) {
         privilegeChecker.assertCanInsert(identifier);
         wrapped.deleteBranch(branchName);
+    }
+
+    @Override
+    public List<Branch> expireBranches() {
+        privilegeChecker.assertCanInsert(identifier);
+        return wrapped.expireBranches();
     }
 
     @Override

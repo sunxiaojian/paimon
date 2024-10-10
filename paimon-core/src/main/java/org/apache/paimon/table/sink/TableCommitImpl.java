@@ -19,6 +19,7 @@
 package org.apache.paimon.table.sink;
 
 import org.apache.paimon.annotation.VisibleForTesting;
+import org.apache.paimon.branch.BranchAutoManager;
 import org.apache.paimon.consumer.ConsumerManager;
 import org.apache.paimon.data.BinaryRow;
 import org.apache.paimon.fs.Path;
@@ -78,6 +79,7 @@ public class TableCommitImpl implements InnerTableCommit {
     @Nullable private final Runnable expireSnapshots;
     @Nullable private final PartitionExpire partitionExpire;
     @Nullable private final TagAutoManager tagAutoManager;
+    @Nullable private final BranchAutoManager branchAutoManager;
     private final Lock lock;
 
     @Nullable private final Duration consumerExpireTime;
@@ -97,6 +99,7 @@ public class TableCommitImpl implements InnerTableCommit {
             @Nullable Runnable expireSnapshots,
             @Nullable PartitionExpire partitionExpire,
             @Nullable TagAutoManager tagAutoManager,
+            @Nullable BranchAutoManager branchAutoManager,
             Lock lock,
             @Nullable Duration consumerExpireTime,
             ConsumerManager consumerManager,
@@ -113,6 +116,7 @@ public class TableCommitImpl implements InnerTableCommit {
         this.expireSnapshots = expireSnapshots;
         this.partitionExpire = partitionExpire;
         this.tagAutoManager = tagAutoManager;
+        this.branchAutoManager = branchAutoManager;
         this.lock = lock;
 
         this.consumerExpireTime = consumerExpireTime;
@@ -343,6 +347,10 @@ public class TableCommitImpl implements InnerTableCommit {
 
         if (tagAutoManager != null) {
             tagAutoManager.run();
+        }
+
+        if (branchAutoManager != null) {
+            branchAutoManager.run();
         }
     }
 
