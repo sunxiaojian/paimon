@@ -35,6 +35,7 @@ org.apache.paimon.flink.action.ExpirePartitionsActionFactory
 org.apache.paimon.flink.action.MarkPartitionDoneActionFactory
 org.apache.paimon.flink.action.CreateBranchActionFactory
 org.apache.paimon.flink.action.DeleteBranchActionFactory
+org.apache.paimon.flink.action.ExpireBranchActionFactory
 org.apache.paimon.flink.action.FastForwardActionFactory
 org.apache.paimon.flink.action.RenameTagActionFactory
 org.apache.paimon.flink.action.RepairActionFactory
@@ -51,6 +52,7 @@ org.apache.paimon.flink.procedure.CreateTagFromWatermarkProcedure
 org.apache.paimon.flink.procedure.DeleteTagProcedure
 org.apache.paimon.flink.procedure.CreateBranchProcedure
 org.apache.paimon.flink.procedure.DeleteBranchProcedure
+org.apache.paimon.flink.procedure.ExpireBranchProcedure
 org.apache.paimon.flink.procedure.DropPartitionProcedure
 org.apache.paimon.flink.procedure.MergeIntoProcedure
 org.apache.paimon.flink.procedure.ResetConsumerProcedure

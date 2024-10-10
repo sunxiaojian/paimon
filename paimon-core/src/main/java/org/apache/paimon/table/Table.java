@@ -21,6 +21,7 @@ package org.apache.paimon.table;
 import org.apache.paimon.Snapshot;
 import org.apache.paimon.annotation.Experimental;
 import org.apache.paimon.annotation.Public;
+import org.apache.paimon.branch.Branch;
 import org.apache.paimon.manifest.IndexManifestEntry;
 import org.apache.paimon.manifest.ManifestEntry;
 import org.apache.paimon.manifest.ManifestFileMeta;
@@ -136,13 +137,19 @@ public interface Table extends Serializable {
     @Experimental
     void rollbackTo(String tagName);
 
-    /** Create an empty branch. */
     @Experimental
     void createBranch(String branchName);
 
-    /** Create a branch from given tag. */
+    /** Create an empty branch. */
+    @Experimental
+    void createBranch(String branchName, Duration timeRetained);
+
     @Experimental
     void createBranch(String branchName, String tagName);
+
+    /** Create a branch from given tag. */
+    @Experimental
+    void createBranch(String branchName, String tagName, Duration timeRetained);
 
     /** Delete a branch by branchName. */
     @Experimental
@@ -155,6 +162,10 @@ public interface Table extends Serializable {
             deleteBranch(branch);
         }
     }
+
+    /** Manually expire branch */
+    @Experimental
+    List<Branch> expireBranches();
 
     /** Merge a branch to main branch. */
     @Experimental

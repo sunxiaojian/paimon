@@ -18,7 +18,7 @@
 
 package org.apache.paimon.table.system;
 
-import org.apache.paimon.Snapshot;
+import org.apache.paimon.branch.Branch;
 import org.apache.paimon.data.BinaryString;
 import org.apache.paimon.data.GenericRow;
 import org.apache.paimon.data.InternalRow;
@@ -28,8 +28,6 @@ import org.apache.paimon.fs.FileIO;
 import org.apache.paimon.fs.Path;
 import org.apache.paimon.predicate.Predicate;
 import org.apache.paimon.reader.RecordReader;
-import org.apache.paimon.schema.SchemaManager;
-import org.apache.paimon.schema.TableSchema;
 import org.apache.paimon.table.FileStoreTable;
 import org.apache.paimon.table.FileStoreTableFactory;
 import org.apache.paimon.table.ReadonlyTable;
@@ -45,9 +43,7 @@ import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.RowType;
 import org.apache.paimon.types.TimestampType;
 import org.apache.paimon.utils.BranchManager;
-import org.apache.paimon.utils.DateTimeUtils;
 import org.apache.paimon.utils.IteratorRecordReader;
-import org.apache.paimon.utils.Pair;
 import org.apache.paimon.utils.ProjectedRow;
 import org.apache.paimon.utils.SerializationUtils;
 
@@ -63,14 +59,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.SortedMap;
-import java.util.stream.Collectors;
 
 import static org.apache.paimon.catalog.Catalog.SYSTEM_TABLE_SPLITTER;
-import static org.apache.paimon.utils.BranchManager.BRANCH_PREFIX;
-import static org.apache.paimon.utils.BranchManager.branchPath;
-import static org.apache.paimon.utils.FileUtils.listVersionedDirectories;
-import static org.apache.paimon.utils.Preconditions.checkArgument;
 
 /** A {@link Table} for showing branches of table. */
 public class BranchesTable implements ReadonlyTable {
@@ -87,7 +77,9 @@ public class BranchesTable implements ReadonlyTable {
                             new DataField(
                                     1, "created_from_tag", SerializationUtils.newStringType(true)),
                             new DataField(2, "created_from_snapshot", new BigIntType(true)),
-                            new DataField(3, "create_time", new TimestampType(false, 3))));
+                            new DataField(3, "create_time", new TimestampType(false, 3)),
+                            new DataField(
+                                    4, "time_retained", SerializationUtils.newStringType(true))));
 
     private final FileIO fileIO;
     private final Path location;
@@ -227,56 +219,25 @@ public class BranchesTable implements ReadonlyTable {
 
         private List<InternalRow> branches(FileStoreTable table) throws IOException {
             BranchManager branchManager = table.branchManager();
-            SchemaManager schemaManager = new SchemaManager(fileIO, table.location());
-
-            List<Pair<Path, Long>> paths =
-                    listVersionedDirectories(fileIO, branchManager.branchDirectory(), BRANCH_PREFIX)
-                            .map(status -> Pair.of(status.getPath(), status.getModificationTime()))
-                            .collect(Collectors.toList());
+            List<Branch> branches = branchManager.branchObjects();
             List<InternalRow> result = new ArrayList<>();
 
-            for (Pair<Path, Long> path : paths) {
-                String branchName = path.getLeft().getName().substring(BRANCH_PREFIX.length());
-                String basedTag = null;
-                Long basedSnapshotId = null;
-                long creationTime = path.getRight();
-
-                Optional<TableSchema> tableSchema =
-                        schemaManager.copyWithBranch(branchName).latest();
-                if (tableSchema.isPresent()) {
-                    FileStoreTable branchTable =
-                            FileStoreTableFactory.create(
-                                    fileIO, new Path(branchPath(table.location(), branchName)));
-                    SortedMap<Snapshot, List<String>> snapshotTags =
-                            branchTable.tagManager().tags();
-                    Long earliestSnapshotId = branchTable.snapshotManager().earliestSnapshotId();
-                    if (snapshotTags.isEmpty()) {
-                        // create based on snapshotId
-                        basedSnapshotId = earliestSnapshotId;
-                    } else {
-                        Snapshot snapshot = snapshotTags.firstKey();
-                        if (Objects.equals(earliestSnapshotId, snapshot.id())) {
-                            // create based on tag
-                            List<String> tags = snapshotTags.get(snapshot);
-                            checkArgument(tags.size() == 1);
-                            basedTag = tags.get(0);
-                            basedSnapshotId = snapshot.id();
-                        } else {
-                            // create based on snapshotId
-                            basedSnapshotId = earliestSnapshotId;
-                        }
-                    }
-                }
-
+            for (Branch branch : branches) {
                 result.add(
                         GenericRow.of(
-                                BinaryString.fromString(branchName),
-                                BinaryString.fromString(basedTag),
-                                basedSnapshotId,
-                                Timestamp.fromLocalDateTime(
-                                        DateTimeUtils.toLocalDateTime(creationTime))));
+                                BinaryString.fromString(branch.getBranchName()),
+                                BinaryString.fromString(branch.getFromTagName()),
+                                branch.getFromSnapshotId(),
+                                branch.getBranchCreateTime() != null
+                                        ? Timestamp.fromLocalDateTime(branch.getBranchCreateTime())
+                                        : null,
+                                (branch.getBranchTimeRetained() == null)
+                                        ? null
+                                        : Optional.ofNullable(branch.getBranchTimeRetained())
+                                                .map(Object::toString)
+                                                .map(BinaryString::fromString)
+                                                .orElse(null)));
             }
-
             return result;
         }
     }

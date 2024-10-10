@@ -27,6 +27,7 @@ import org.apache.paimon.table.FileStoreTable;
 import org.apache.paimon.table.TableTestBase;
 import org.apache.paimon.table.sink.TableCommitImpl;
 import org.apache.paimon.types.DataTypes;
+import org.apache.paimon.utils.TimeUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -82,6 +83,21 @@ class BranchesTableTest extends TableTestBase {
         table.createBranch("my_branch1", "2023-07-17");
         table.createBranch("my_branch2", "2023-07-18");
         table.createBranch("my_branch3", "2023-07-18");
+        List<InternalRow> branches = read(branchesTable);
+        assertThat(branches.size()).isEqualTo(3);
+        assertThat(
+                        branches.stream()
+                                .map(v -> v.getString(0).toString())
+                                .collect(Collectors.toList()))
+                .containsExactlyInAnyOrder("my_branch1", "my_branch2", "my_branch3");
+    }
+
+    @Test
+    void testBranchesWithMaxAge() throws Exception {
+        String retainTime = "10000ms";
+        table.createBranch("my_branch1", "2023-07-17", TimeUtils.parseDuration(retainTime));
+        table.createBranch("my_branch2", "2023-07-18", TimeUtils.parseDuration(retainTime));
+        table.createBranch("my_branch3", "2023-07-18", TimeUtils.parseDuration(retainTime));
         List<InternalRow> branches = read(branchesTable);
         assertThat(branches.size()).isEqualTo(3);
         assertThat(

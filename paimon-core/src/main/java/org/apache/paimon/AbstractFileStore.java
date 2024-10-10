@@ -18,6 +18,7 @@
 
 package org.apache.paimon;
 
+import org.apache.paimon.branch.BranchAutoManager;
 import org.apache.paimon.data.InternalRow;
 import org.apache.paimon.deletionvectors.DeletionVectorsIndexFile;
 import org.apache.paimon.fs.FileIO;
@@ -49,6 +50,7 @@ import org.apache.paimon.table.sink.CommitCallback;
 import org.apache.paimon.table.sink.TagCallback;
 import org.apache.paimon.tag.TagAutoManager;
 import org.apache.paimon.types.RowType;
+import org.apache.paimon.utils.BranchManager;
 import org.apache.paimon.utils.FileStorePathFactory;
 import org.apache.paimon.utils.SegmentsCache;
 import org.apache.paimon.utils.SnapshotManager;
@@ -309,6 +311,13 @@ abstract class AbstractFileStore<T> implements FileStore<T> {
                 newTagManager(),
                 newTagDeletion(),
                 createTagCallbacks());
+    }
+
+    @Override
+    public BranchAutoManager newBranchCreationManager() {
+        return BranchAutoManager.create(
+                new BranchManager(
+                        fileIO, options.path(), snapshotManager(), newTagManager(), schemaManager));
     }
 
     @Override

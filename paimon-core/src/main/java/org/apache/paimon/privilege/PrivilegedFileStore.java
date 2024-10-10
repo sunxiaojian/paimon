@@ -20,6 +20,7 @@ package org.apache.paimon.privilege;
 
 import org.apache.paimon.CoreOptions;
 import org.apache.paimon.FileStore;
+import org.apache.paimon.branch.BranchAutoManager;
 import org.apache.paimon.catalog.Identifier;
 import org.apache.paimon.fs.Path;
 import org.apache.paimon.index.IndexFileHandler;
@@ -187,6 +188,12 @@ public class PrivilegedFileStore<T> implements FileStore<T> {
     public TagAutoManager newTagCreationManager() {
         privilegeChecker.assertCanInsert(identifier);
         return wrapped.newTagCreationManager();
+    }
+
+    @Override
+    public BranchAutoManager newBranchCreationManager() {
+        privilegeChecker.assertCanInsert(identifier);
+        return wrapped.newBranchCreationManager();
     }
 
     @Override

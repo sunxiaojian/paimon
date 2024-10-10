@@ -170,6 +170,42 @@ public class BranchSqlITCase extends CatalogITCaseBase {
     }
 
     @Test
+    public void testCreateEmptyBranchWithMaxAge() throws Exception {
+        sql(
+                "CREATE TABLE T ("
+                        + " pt INT"
+                        + ", k INT"
+                        + ", v STRING"
+                        + ", PRIMARY KEY (pt, k) NOT ENFORCED"
+                        + " ) PARTITIONED BY (pt) WITH ("
+                        + " 'bucket' = '2'"
+                        + " )");
+
+        // snapshot 1.
+        sql("INSERT INTO T VALUES(1, 10, 'apple')");
+        // snapshot 2.
+        sql("INSERT INTO T VALUES(1, 20, 'dog')");
+
+        assertThat(collectResult("SELECT * FROM T"))
+                .containsExactlyInAnyOrder("+I[1, 10, apple]", "+I[1, 20, dog]");
+        // create empty branch.
+        sql("CALL sys.create_branch('default.T', 'empty_branch1')");
+        sql("CALL sys.create_branch('default.T', 'empty_branch2')");
+        sql(
+                "CALL sys.create_branch(`table`=>'default.T', `branch`=>'empty_branch3', `time_retained`=>'1000ms')");
+        // Get all branches
+        assertThat(collectResult("SELECT * FROM T$branches").size()).isEqualTo(3);
+
+        Thread.sleep(1000);
+        sql("INSERT INTO `T$branch_empty_branch1` VALUES (3, 30, 'banana')");
+        assertThat(collectResult("SELECT * FROM T$branch_empty_branch1"))
+                .containsExactlyInAnyOrder("+I[3, 30, banana]");
+
+        // Get all branches, expired empty_branch3
+        assertThat(collectResult("SELECT * FROM T$branches").size()).isEqualTo(2);
+    }
+
+    @Test
     public void testDeleteBranchTable() throws Exception {
         sql(
                 "CREATE TABLE T ("

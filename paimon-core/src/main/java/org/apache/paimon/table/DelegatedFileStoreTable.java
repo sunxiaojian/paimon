@@ -21,6 +21,7 @@ package org.apache.paimon.table;
 import org.apache.paimon.CoreOptions;
 import org.apache.paimon.FileStore;
 import org.apache.paimon.Snapshot;
+import org.apache.paimon.branch.Branch;
 import org.apache.paimon.fs.FileIO;
 import org.apache.paimon.fs.Path;
 import org.apache.paimon.manifest.IndexManifestEntry;
@@ -45,6 +46,7 @@ import org.apache.paimon.utils.SnapshotManager;
 import org.apache.paimon.utils.TagManager;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -203,13 +205,28 @@ public abstract class DelegatedFileStoreTable implements FileStoreTable {
     }
 
     @Override
+    public void createBranch(String branchName, Duration timeRetained) {
+        wrapped.createBranch(branchName, timeRetained);
+    }
+
+    @Override
     public void createBranch(String branchName, String tagName) {
         wrapped.createBranch(branchName, tagName);
     }
 
     @Override
+    public void createBranch(String branchName, String tagName, Duration timeRetained) {
+        wrapped.createBranch(branchName, tagName, timeRetained);
+    }
+
+    @Override
     public void deleteBranch(String branchName) {
         wrapped.deleteBranch(branchName);
+    }
+
+    @Override
+    public List<Branch> expireBranches() {
+        return wrapped.expireBranches();
     }
 
     @Override

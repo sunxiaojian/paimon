@@ -20,6 +20,7 @@ package org.apache.paimon.table;
 
 import org.apache.paimon.CoreOptions;
 import org.apache.paimon.Snapshot;
+import org.apache.paimon.branch.Branch;
 import org.apache.paimon.catalog.Identifier;
 import org.apache.paimon.consumer.ConsumerManager;
 import org.apache.paimon.fs.FileIO;
@@ -405,6 +406,7 @@ abstract class AbstractFileStoreTable implements FileStoreTable {
                 snapshotExpire,
                 options.writeOnly() ? null : store().newPartitionExpire(commitUser),
                 options.writeOnly() ? null : store().newTagCreationManager(),
+                options.writeOnly() ? null : store().newBranchCreationManager(),
                 catalogEnvironment.lockFactory().create(),
                 CoreOptions.fromMap(options()).consumerExpireTime(),
                 new ConsumerManager(fileIO, path, snapshotManager().branch()),
@@ -598,17 +600,32 @@ abstract class AbstractFileStoreTable implements FileStoreTable {
 
     @Override
     public void createBranch(String branchName) {
-        branchManager().createBranch(branchName);
+        createBranch(branchName, (Duration) null);
+    }
+
+    @Override
+    public void createBranch(String branchName, Duration timeRetained) {
+        branchManager().createBranch(branchName, timeRetained);
     }
 
     @Override
     public void createBranch(String branchName, String tagName) {
-        branchManager().createBranch(branchName, tagName);
+        createBranch(branchName, tagName, (Duration) null);
+    }
+
+    @Override
+    public void createBranch(String branchName, String tagName, Duration timeRetained) {
+        branchManager().createBranch(branchName, tagName, timeRetained);
     }
 
     @Override
     public void deleteBranch(String branchName) {
         branchManager().deleteBranch(branchName);
+    }
+
+    @Override
+    public List<Branch> expireBranches() {
+        return branchManager().expireBranches();
     }
 
     @Override
